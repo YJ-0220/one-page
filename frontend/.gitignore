@@ -12,8 +12,6 @@ dist
 dist-ssr
 *.local
 
-backend/.env
-
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -24,3 +22,6 @@ backend/.env
 *.njsproj
 *.sln
 *.sw?
+
+# 백엔드 파일을 만들었으면 당연히 경로도 backend 폴더를 적었어야지;;
+backend/.env
