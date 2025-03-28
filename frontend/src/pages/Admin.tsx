@@ -109,7 +109,7 @@ const AdminPage = ({ onLogin, isLoggedIn }: AdminPageProps) => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-6xl mx-auto">
       <h2 className="text-2xl font-bold mb-6">관리자 대시보드</h2>
       
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
