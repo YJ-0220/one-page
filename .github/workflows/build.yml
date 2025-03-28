@@ -1,0 +1,122 @@
+name: 빌드 및 배포
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Node.js 설정
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: 디렉토리 구조 확인
+      run: ls -la
+    
+    - name: 백엔드 디렉토리 확인
+      run: |
+        if [ -d "./backend" ]; then
+          echo "Backend directory exists"
+          ls -la ./backend
+        else
+          echo "Backend directory does not exist"
+          exit 1
+        fi
+    
+    - name: 백엔드 package.json 확인
+      run: |
+        if [ -f "./backend/package.json" ]; then
+          echo "Backend package.json exists"
+          cat ./backend/package.json
+        else
+          echo "Backend package.json does not exist"
+          exit 1
+        fi
+    
+    - name: 백엔드 의존성 설치
+      working-directory: ./backend
+      run: npm install
+    
+    - name: 백엔드 빌드
+      working-directory: ./backend
+      run: npm run build || (echo "Backend build failed" && exit 1)
+    
+    - name: 백엔드 빌드 결과 확인
+      run: |
+        if [ -d "./backend/dist" ]; then
+          echo "Backend build succeeded"
+          ls -la ./backend/dist
+        else
+          echo "Backend dist directory does not exist after build"
+          exit 1
+        fi
+    
+    - name: 백엔드 빌드 아티팩트 업로드
+      uses: actions/upload-artifact@v4
+      with:
+        name: backend-build
+        path: backend/dist
+  
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Node.js 설정
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: 디렉토리 구조 확인
+      run: ls -la
+    
+    - name: 프론트엔드 디렉토리 확인
+      run: |
+        if [ -d "./frontend" ]; then
+          echo "Frontend directory exists"
+          ls -la ./frontend
+        else
+          echo "Frontend directory does not exist"
+          exit 1
+        fi
+    
+    - name: 프론트엔드 package.json 확인
+      run: |
+        if [ -f "./frontend/package.json" ]; then
+          echo "Frontend package.json exists"
+          cat ./frontend/package.json
+        else
+          echo "Frontend package.json does not exist"
+          exit 1
+        fi
+    
+    - name: 프론트엔드 의존성 설치
+      working-directory: ./frontend
+      run: npm install --legacy-peer-deps
+    
+    - name: 프론트엔드 빌드
+      working-directory: ./frontend
+      run: npm run build
+    
+    - name: 프론트엔드 빌드 결과 확인
+      run: |
+        if [ -d "./frontend/dist" ]; then
+          echo "Frontend build succeeded"
+          ls -la ./frontend/dist
+        else
+          echo "Frontend dist directory does not exist after build"
+          exit 1
+        fi
+    
+    - name: 프론트엔드 빌드 아티팩트 업로드
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-build
+        path: frontend/dist 
