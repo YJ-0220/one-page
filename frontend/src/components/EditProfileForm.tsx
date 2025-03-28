@@ -47,7 +47,7 @@ const EditProfileForm = ({ onClose, userId, username }: EditProfileFormProps) =>
 
     try {
       setLoading(true);
-      const response = await axios.put(
+      const res = await axios.put(
         `/api/user/${userId}`,
         {
           newUserId: newUserId !== userId ? newUserId : undefined,
