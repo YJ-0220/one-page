@@ -7,7 +7,7 @@ interface EditProfileFormProps {
   username: string | null;
 }
 
-const EditProfileForm = ({ onClose, userId, username }: EditProfileFormProps) => {
+const EditProfileForm = ({ onClose, userId }: EditProfileFormProps) => {
   const [newUserId, setNewUserId] = useState(userId || '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -47,7 +47,7 @@ const EditProfileForm = ({ onClose, userId, username }: EditProfileFormProps) =>
 
     try {
       setLoading(true);
-      const res = await axios.put(
+      await axios.put(
         `/api/user/${userId}`,
         {
           newUserId: newUserId !== userId ? newUserId : undefined,
