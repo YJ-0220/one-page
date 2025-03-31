@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "http://<github id>.github.io",
+  "homepage": "https://YJ-0220.github.io/one-page",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
