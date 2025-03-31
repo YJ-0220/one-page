@@ -18,6 +18,7 @@ dotenv.config();
 // 앱 및 포트 설정
 const app = express();
 const PORT = process.env.PORT || 3000;
+const MONGODB_URI = process.env.MONGODB_URI;
 
 // 필수 환경 변수 확인
 if (
