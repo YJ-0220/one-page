@@ -47,7 +47,7 @@ app.use(
   cors({
     origin: [
       process.env.CLIENT_URL || "http://localhost:5173",
-      "https://your-username.github.io",
+      "https://YJ-0220.github.io/one-page/",
     ],
     credentials: true,
   })
@@ -94,7 +94,7 @@ passport.use(
     {
       channelID: process.env.LINE_CHANNEL_ID as string,
       channelSecret: process.env.LINE_CHANNEL_SECRET as string,
-      callbackURL: `http://localhost:3000/auth/line/callback`,
+      callbackURL: `${process.env.VITE_API_URL}/auth/line/callback`,
       scope: "profile openid email",
     },
     async (
@@ -212,7 +212,7 @@ passport.use(
 app.get("/auth/kakao", (req, res) => {
   // 카카오 로그인 페이지로 리다이렉트
   const kakaoAuthURL = "https://kauth.kakao.com/oauth/authorize";
-  const redirect_uri = `http://localhost:3000/auth/kakao/callback`;
+  const redirect_uri = `${process.env.VITE_API_URL}/auth/kakao/callback`;
 
   res.redirect(
     `${kakaoAuthURL}?client_id=${process.env.KAKAO_CLIENT_ID}&redirect_uri=${redirect_uri}&response_type=code`
@@ -223,7 +223,7 @@ app.get("/auth/kakao", (req, res) => {
 app.get("/auth/kakao/callback", async (req, res) => {
   const code = req.query.code;
   const kakaoTokenURL = "https://kauth.kakao.com/oauth/token";
-  const redirect_uri = `http://localhost:3000/auth/kakao/callback`;
+  const redirect_uri = `${process.env.VITE_API_URL}/auth/kakao/callback`;
 
   try {
     // 토큰 요청
