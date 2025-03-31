@@ -23,7 +23,9 @@ const MONGODB_URI = process.env.MONGODB_URI;
 const apiUrl = `${process.env.BACKEND_URL}/api/auth/status`;
 
 //깃허브
-fetch(apiUrl)
+fetch(`${apiUrl}/api/auth/status`, {
+  credentials: "include",
+})
   .then(res => res.json())
   .then(data => console.log(data))
   .then(err => console.error('Error:', err))
