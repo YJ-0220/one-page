@@ -20,15 +20,17 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
-const apiUrl = `${process.env.VITE_API_URL}`;
+const apiUrl = process.env.BACKEND_URL || 'http://localhost:3000';
 
 //깃허브 백엔드 배포 테스트
-fetch(`${apiUrl}/api/auth/status`, {
-  credentials: "include",
-})
-  .then(res => res.json())
-  .then(data => console.log(data))
-  .then(err => console.error('Error:', err))
+if (apiUrl) {
+  fetch(`${apiUrl}/api/auth/status`, {
+    credentials: "include",
+  })
+    .then(res => res.json())
+    .then(data => console.log(data))
+    .then(err => console.error('Error:', err))
+}
 
 // 필수 환경 변수 확인
 if (
