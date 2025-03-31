@@ -27,9 +27,14 @@ if (apiUrl) {
   fetch(`${apiUrl}/api/auth/status`, {
     credentials: "include",
   })
-    .then(res => res.json())
-    .then(data => console.log(data))
-    .then(err => console.error('Error:', err))
+    .then(res => {
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      return res.json();
+    })
+    .then(data => console.log('Auth status:', data))
+    .catch(err => console.error('Error checking auth status:', err));
 }
 
 // 필수 환경 변수 확인
