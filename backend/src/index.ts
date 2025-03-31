@@ -20,9 +20,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
-const apiUrl = `${process.env.BACKEND_URL}/api/auth/status`;
+const apiUrl = `${process.env.BACKEND_API_URL}`;
 
-//깃허브
+//깃허브 백엔드 배포 테스트
 fetch(`${apiUrl}/api/auth/status`, {
   credentials: "include",
 })
