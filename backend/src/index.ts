@@ -11,7 +11,7 @@ import User from "./models/User";
 import connectDB from "./db";
 import Contact from "./models/Contact";
 import axios from "axios";
-const MongoStore = require('connect-mongo');
+const MongoStore = require("connect-mongo");
 
 // 환경 변수 로드
 dotenv.config();
@@ -20,6 +20,13 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
+const apiUrl = `${process.env.BACKEND_URL}/api/auth/status`;
+
+//깃허브
+fetch(apiUrl)
+  .then(res => res.json())
+  .then(data => console.log(data))
+  .then(err => console.error('Error:', err))
 
 // 필수 환경 변수 확인
 if (
@@ -47,6 +54,7 @@ app.use(
   cors({
     origin: [
       process.env.CLIENT_URL || "http://localhost:5173",
+      "https://yj-0220.github.io",
       "https://YJ-0220.github.io/one-page/",
     ],
     credentials: true,
@@ -65,13 +73,13 @@ app.use((req, res, next) => {
 // 세션 설정
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || 'your_secret_key',
+    secret: process.env.SESSION_SECRET || "your_secret_key",
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
       mongoUrl: process.env.MONGODB_URI,
-      ttl: 14 * 24 * 60 * 60 // 세션 유효기간 14일
-    })
+      ttl: 14 * 24 * 60 * 60, // 세션 유효기간 14일
+    }),
   })
 );
 
@@ -94,7 +102,7 @@ passport.use(
     {
       channelID: process.env.LINE_CHANNEL_ID as string,
       channelSecret: process.env.LINE_CHANNEL_SECRET as string,
-      callbackURL: `${process.env.VITE_API_URL}/auth/line/callback`,
+      callbackURL: `${process.env.BACKEND_URL}/auth/line/callback`,
       scope: "profile openid email",
     },
     async (
@@ -212,7 +220,7 @@ passport.use(
 app.get("/auth/kakao", (req, res) => {
   // 카카오 로그인 페이지로 리다이렉트
   const kakaoAuthURL = "https://kauth.kakao.com/oauth/authorize";
-  const redirect_uri = `${process.env.VITE_API_URL}/auth/kakao/callback`;
+  const redirect_uri = `${process.env.BACKEND_URL}/auth/kakao/callback`;
 
   res.redirect(
     `${kakaoAuthURL}?client_id=${process.env.KAKAO_CLIENT_ID}&redirect_uri=${redirect_uri}&response_type=code`
@@ -223,7 +231,7 @@ app.get("/auth/kakao", (req, res) => {
 app.get("/auth/kakao/callback", async (req, res) => {
   const code = req.query.code;
   const kakaoTokenURL = "https://kauth.kakao.com/oauth/token";
-  const redirect_uri = `${process.env.VITE_API_URL}/auth/kakao/callback`;
+  const redirect_uri = `${process.env.BACKEND_URL}/auth/kakao/callback`;
 
   try {
     // 토큰 요청
@@ -457,6 +465,7 @@ app.get(
 app.get("/api/auth/status", (req, res) => {
   if (req.isAuthenticated()) {
     return res.json({
+      status: "OK",
       authenticated: true,
       user: req.user,
     });
@@ -521,7 +530,7 @@ app.get("/api/user", isAuthenticated, (req, res) => {
 });
 
 // 사용자 정보 수정 API
-app.put('/api/user/:id', async (req, res) => {
+app.put("/api/user/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { newUserId, currentPassword, newPassword } = req.body;
@@ -529,18 +538,20 @@ app.put('/api/user/:id', async (req, res) => {
 
     // 로그인 확인
     if (!session.user) {
-      return res.status(401).json({ error: '로그인이 필요합니다.' });
+      return res.status(401).json({ error: "로그인이 필요합니다." });
     }
 
     // 관리자가 아니고 자신의 정보가 아닌 경우
     if (!session.user.isAdmin && session.user.id !== id) {
-      return res.status(403).json({ error: '자신의 정보만 수정할 수 있습니다.' });
+      return res
+        .status(403)
+        .json({ error: "자신의 정보만 수정할 수 있습니다." });
     }
 
     // 사용자 찾기
     const user = await User.findById(id);
     if (!user) {
-      return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
+      return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
     }
 
     // ID 변경이 요청된 경우
@@ -548,7 +559,7 @@ app.put('/api/user/:id', async (req, res) => {
       // ID 중복 확인
       const existingUser = await User.findOne({ id: newUserId });
       if (existingUser) {
-        return res.status(400).json({ error: '이미 사용 중인 ID입니다.' });
+        return res.status(400).json({ error: "이미 사용 중인 ID입니다." });
       }
       user.id = newUserId;
     }
@@ -556,20 +567,22 @@ app.put('/api/user/:id', async (req, res) => {
     // 비밀번호 변경이 요청된 경우
     if (newPassword) {
       if (!currentPassword) {
-        return res.status(400).json({ error: '현재 비밀번호를 입력해주세요.' });
+        return res.status(400).json({ error: "현재 비밀번호를 입력해주세요." });
       }
       const isMatch = await user.comparePassword(currentPassword);
       if (!isMatch) {
-        return res.status(400).json({ error: '현재 비밀번호가 일치하지 않습니다.' });
+        return res
+          .status(400)
+          .json({ error: "현재 비밀번호가 일치하지 않습니다." });
       }
       user.password = newPassword;
     }
 
     await user.save();
-    res.json({ message: '회원정보가 수정되었습니다.' });
+    res.json({ message: "회원정보가 수정되었습니다." });
   } catch (error) {
-    console.error('회원정보 수정 오류:', error);
-    res.status(500).json({ error: '회원정보 수정 중 오류가 발생했습니다.' });
+    console.error("회원정보 수정 오류:", error);
+    res.status(500).json({ error: "회원정보 수정 중 오류가 발생했습니다." });
   }
 });
 
