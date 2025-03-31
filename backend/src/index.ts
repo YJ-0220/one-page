@@ -11,6 +11,7 @@ import User from "./models/User";
 import connectDB from "./db";
 import Contact from "./models/Contact";
 import axios from "axios";
+const MongoStore = require('connect-mongo');
 
 // 환경 변수 로드
 dotenv.config();
@@ -64,15 +65,13 @@ app.use((req, res, next) => {
 // 세션 설정
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "keyboard cat",
+    secret: process.env.SESSION_SECRET || 'your_secret_key',
     resave: false,
-    saveUninitialized: true,
-    cookie: {
-      secure: process.env.NODE_ENV === "production",
-      httpOnly: true,
-      maxAge: 30 * 60 * 1000, // 30분으로 세션 시간 조정
-      sameSite: "lax",
-    },
+    saveUninitialized: false,
+    store: MongoStore.create({
+      mongoUrl: process.env.MONGODB_URI,
+      ttl: 14 * 24 * 60 * 60 // 세션 유효기간 14일
+    })
   })
 );
 
