@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema, Model } from 'mongoose';
-import bcrypt from 'bcrypt';
+const bcrypt = require('bcryptjs');
 
 // 사용자 문서 인터페이스 정의
 export interface IUser {
