@@ -63,7 +63,6 @@ app.use(
   cors({
     origin: [
       process.env.CLIENT_URL || "http://localhost:5173",
-      "https://yj-0220.github.io",
       "https://YJ-0220.github.io/one-page/",
     ],
     credentials: true,
