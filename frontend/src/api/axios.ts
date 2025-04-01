@@ -49,19 +49,42 @@ export const setAuthToken = (token: string | null, refreshToken: string | null =
 // 토큰 갱신 함수
 const refreshAuthToken = async () => {
   try {
+    console.log('토큰 갱신 시도 중...');
+    
     const refreshToken = localStorage.getItem('refreshToken');
     if (!refreshToken) {
+      console.error('리프레시 토큰이 없습니다');
       throw new Error('리프레시 토큰이 없습니다');
     }
 
     const response = await axios.post(`${API_URL}/api/auth/refresh-token`, { refreshToken });
+    console.log('토큰 갱신 성공');
+    
     const { accessToken, refreshToken: newRefreshToken } = response.data;
     
+    // 토큰 저장 및 설정
     setAuthToken(accessToken, newRefreshToken);
     return accessToken;
   } catch (error) {
+    console.error('토큰 갱신 실패:', error);
+    
+    // 토큰 만료 또는 갱신 실패 시 로그아웃 처리
     setAuthToken(null);
-    window.location.href = '/'; // 홈페이지로 리디렉션
+    
+    // 에러 메시지 표시 (5초 후 삭제)
+    const errorMessage = document.createElement('div');
+    errorMessage.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background-color: #f44336; color: white; padding: 15px; border-radius: 4px; z-index: 10000;';
+    errorMessage.innerText = '세션이 만료되었습니다. 다시 로그인해주세요.';
+    document.body.appendChild(errorMessage);
+    
+    setTimeout(() => {
+      if (errorMessage.parentNode) {
+        document.body.removeChild(errorMessage);
+      }
+      // 홈페이지로 리디렉션
+      window.location.href = '/';
+    }, 5000);
+    
     return null;
   }
 };
@@ -72,14 +95,20 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
+    
     // 토큰 만료로 인한 401 오류이고 재시도하지 않은 요청인 경우
     if (error.response?.status === 401 && !originalRequest._retry) {
+      console.log('401 오류 감지, 토큰 갱신 시도');
       originalRequest._retry = true;
       
       // 토큰 갱신 시도
       const newToken = await refreshAuthToken();
       
       if (newToken) {
+        console.log('새로운 토큰으로 요청 재시도');
         // 기존 요청의 헤더에 새 토큰 설정
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);

@@ -128,26 +128,6 @@ const generateToken = (user: any) => {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });
 };
 
-// JWT 인증 미들웨어
-const authenticateJWT = (req: any, res: any, next: any) => {
-  const authHeader = req.headers.authorization;
-  
-  if (authHeader) {
-    const token = authHeader.split(' ')[1];
-    
-    jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-      if (err) {
-        return res.sendStatus(403);
-      }
-      
-      req.user = user;
-      next();
-    });
-  } else {
-    res.sendStatus(401);
-  }
-};
-
 // 선택적 JWT 인증 미들웨어 - 토큰이 없어도 다음으로 진행
 const optionalAuthenticateJWT = (req: any, res: any, next: any) => {
   const authHeader = req.headers.authorization;
@@ -158,19 +138,61 @@ const optionalAuthenticateJWT = (req: any, res: any, next: any) => {
     const token = authHeader.split(' ')[1];
     console.log('요청 토큰:', token ? token.substring(0, 10) + '...' : 'undefined');
     
-    jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-      if (!err) {
-        console.log('JWT 토큰 검증 성공, 사용자 정보:', user);
-        req.user = user;
-      } else {
-        console.error('JWT 토큰 검증 실패:', err.message);
+    try {
+      // 동기적으로 토큰 검증하여 에러 처리 개선
+      const user = jwt.verify(token, JWT_SECRET);
+      console.log('JWT 토큰 검증 성공, 사용자 정보:', user);
+      req.user = user;
+    } catch (err) {
+      console.error('JWT 토큰 검증 실패:', (err as Error).message);
+      // 토큰이 만료되었을 경우 사용자에게 401 반환하여 리프레시 토큰 사용 유도
+      if ((err as any).name === 'TokenExpiredError') {
+        return res.status(401).json({ 
+          error: "토큰이 만료되었습니다",
+          code: "TOKEN_EXPIRED"
+        });
       }
-    });
+    }
   } else {
     console.log('인증 헤더 없음');
   }
   
   next();
+};
+
+// JWT 인증 미들웨어 (필수)
+const authenticateJWT = (req: any, res: any, next: any) => {
+  const authHeader = req.headers.authorization;
+  
+  if (authHeader) {
+    const token = authHeader.split(' ')[1];
+    
+    try {
+      const user = jwt.verify(token, JWT_SECRET);
+      req.user = user;
+      next();
+    } catch (err) {
+      console.error('JWT 토큰 검증 실패 (필수 인증):', (err as Error).message);
+      
+      // 토큰이 만료된 경우 특별 오류 코드 반환
+      if ((err as any).name === 'TokenExpiredError') {
+        return res.status(401).json({ 
+          error: "토큰이 만료되었습니다",
+          code: "TOKEN_EXPIRED"
+        });
+      }
+      
+      return res.status(403).json({
+        error: "유효하지 않은 토큰입니다",
+        code: "INVALID_TOKEN"
+      });
+    }
+  } else {
+    return res.status(401).json({
+      error: "인증이 필요합니다",
+      code: "AUTH_REQUIRED"
+    });
+  }
 };
 
 // 관리자 권한 확인 미들웨어
@@ -631,7 +653,10 @@ app.post("/api/auth/refresh-token", async (req, res) => {
   const { refreshToken } = req.body;
   
   if (!refreshToken) {
-    return res.status(401).json({ error: "리프레시 토큰이 필요합니다." });
+    return res.status(400).json({ 
+      error: "리프레시 토큰이 필요합니다.",
+      code: "REFRESH_TOKEN_REQUIRED"
+    });
   }
   
   try {
@@ -641,16 +666,36 @@ app.post("/api/auth/refresh-token", async (req, res) => {
     // 사용자 조회
     const user = await User.findById(decoded.userId);
     if (!user) {
-      return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
+      return res.status(404).json({ 
+        error: "사용자를 찾을 수 없습니다.",
+        code: "USER_NOT_FOUND" 
+      });
     }
     
     // 새 토큰 발급
     const tokens = generateTokens(user);
     
+    console.log('토큰 갱신 성공:', { 
+      userId: user._id, 
+      expiresIn: '30d'
+    });
+    
     res.json(tokens);
   } catch (error) {
     console.error("토큰 갱신 오류:", error);
-    res.status(403).json({ error: "유효하지 않은 토큰입니다." });
+    
+    // 리프레시 토큰 만료 여부에 따라 다른 오류 메시지 반환
+    if ((error as any).name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        error: "리프레시 토큰이 만료되었습니다. 다시 로그인하세요.",
+        code: "REFRESH_TOKEN_EXPIRED"
+      });
+    }
+    
+    res.status(403).json({ 
+      error: "유효하지 않은 리프레시 토큰입니다.",
+      code: "INVALID_REFRESH_TOKEN"
+    });
   }
 });
 
