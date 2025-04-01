@@ -879,4 +879,24 @@ connectDB().then(() => {
 });
 
 //---------- 서버 시작 ----------//
-app.listen(PORT, () => {});
+app.listen(PORT, () => {
+  console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
+  
+  // 서버가 완전히 시작된 후 상태 확인
+  setTimeout(() => {
+    const apiUrl = process.env.BACKEND_URL || `http://localhost:${PORT}`;
+    console.log("백엔드 URL:", apiUrl);
+    
+    fetch(`${apiUrl}/api/auth/status`, {
+      credentials: "include",
+    })
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((data) => console.log("Auth status:", data))
+      .catch((err) => console.error("Error checking auth status:", err));
+  }, 3000); // 3초 지연
+});
