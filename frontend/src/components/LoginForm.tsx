@@ -63,7 +63,9 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
     const popupOptions = `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`;
 
     // 소셜 로그인 URL
-    const url = `/auth/${provider}`;
+    const BACKEND_URL =
+      import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+    const url = `${BACKEND_URL}/auth/${provider}`;
 
     // 팝업 창 열기
     const popup = window.open(url, `${provider}Login`, popupOptions);
@@ -73,8 +75,9 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
       if (!popup || popup.closed) {
         clearInterval(checkPopup);
         // 로그인 상태 다시 확인
-        api.get('/api/auth/status')
-          .then(res => {
+        api
+          .get("/api/auth/status")
+          .then((res) => {
             if (res.data.authenticated && res.data.user) {
               console.log("소셜 로그인 성공:", res.data.user);
               onLogin(res.data.user.displayName || res.data.user.email);

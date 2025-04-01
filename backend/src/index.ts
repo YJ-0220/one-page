@@ -63,7 +63,8 @@ app.use(
   cors({
     origin: [
       process.env.CLIENT_URL || "http://localhost:5173",
-      "https://YJ-0220.github.io/one-page/",
+      "https://yj-0220.github.io", // 대소문자 수정
+      "https://yj-0220.github.io/one-page", // 슬래시 제거
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -880,23 +881,17 @@ connectDB().then(() => {
 
 //---------- 서버 시작 ----------//
 app.listen(PORT, () => {
-  console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
-  
   // 서버가 완전히 시작된 후 상태 확인
   setTimeout(() => {
     const apiUrl = process.env.BACKEND_URL || `http://localhost:${PORT}`;
-    console.log("백엔드 URL:", apiUrl);
-    
+
     fetch(`${apiUrl}/api/auth/status`, {
       credentials: "include",
-    })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then((data) => console.log("Auth status:", data))
-      .catch((err) => console.error("Error checking auth status:", err));
+    }).then((res) => {
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      return res.json();
+    });
   }, 3000); // 3초 지연
 });
