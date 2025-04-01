@@ -26,14 +26,11 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
       setLoading(true);
 
       // 로컬 로그인 API 호출
-      const response = await axios.post(
+      const response = await api.post(
         "/api/auth/login",
         {
           email,
           password,
-        },
-        {
-          withCredentials: true, // 쿠키 전송을 위해 필요
         }
       );
 
@@ -63,9 +60,8 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
     const popupOptions = `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`;
 
     // 소셜 로그인 URL
-    const BACKEND_URL =
-      import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
-    const url = `${BACKEND_URL}/auth/${provider}`;
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+    const url = `${BACKEND_URL}/api/auth/${provider}`;
 
     // 팝업 창 열기
     const popup = window.open(url, `${provider}Login`, popupOptions);
