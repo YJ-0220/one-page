@@ -1,7 +1,7 @@
 import axios from "axios";
 
-// 환경변수가 없을 경우를 대비한 기본값 설정
-const API_URL = import.meta.env.BACKEND_URL || "http://localhost:3000";
+// 기본 URL을 명시적으로 설정
+const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
 
 // API_URL이 undefined인지 확인
 if (!API_URL) {

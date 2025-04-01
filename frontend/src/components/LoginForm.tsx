@@ -1,5 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
+import { api } from "../api/axios";
 
 interface LoginFormProps {
   onLogin: (username: string) => void;
@@ -72,14 +73,11 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
       if (!popup || popup.closed) {
         clearInterval(checkPopup);
         // 로그인 상태 다시 확인
-        fetch("/api/auth/status", {
-          credentials: "include",
-        })
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.authenticated && data.user) {
-              console.log("소셜 로그인 성공:", data.user);
-              onLogin(data.user.displayName || data.user.email);
+        api.get('/api/auth/status')
+          .then(res => {
+            if (res.data.authenticated && res.data.user) {
+              console.log("소셜 로그인 성공:", res.data.user);
+              onLogin(res.data.user.displayName || res.data.user.email);
               onClose();
             }
           })
