@@ -69,15 +69,22 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
 
     // 메시지 이벤트 리스너 설정
     const messageListener = (event: MessageEvent) => {
-      // 메시지 출처 확인
-      if (event.origin !== BACKEND_URL) {
-        console.log("메시지 무시됨:", event.origin);
+      // 메시지 출처 검증 - 더 포괄적인 출처 확인
+      const allowedOrigins = [
+        BACKEND_URL,
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://yj-0220.github.io"
+      ];
+      
+      if (!allowedOrigins.some(origin => event.origin.includes(origin))) {
+        console.log("메시지 무시됨 (다른 출처):", event.origin);
         return;
       }
       
       console.log("받은 메시지:", event.data);
       
-      if (event.data.type === 'login_success' && event.data.token) {
+      if (event.data && event.data.type === 'login_success' && event.data.token) {
         console.log("소셜 로그인 성공:", event.data.user);
         
         // JWT 토큰 저장 (액세스 토큰과 리프레시 토큰)

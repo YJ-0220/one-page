@@ -18,14 +18,9 @@ function App() {
   // 백엔드에서 로그인 상태 확인
   const checkAuthStatus = async () => {
     try {
-      console.log('로그인 상태 확인 시작...');
-      
-      // 토큰이 없으면 인증되지 않은 상태로 설정
       const token = localStorage.getItem('authToken');
-      console.log('저장된 토큰 존재 여부:', !!token);
       
       if (!token) {
-        console.log('토큰 없음, 비인증 상태로 설정');
         setUsername(null);
         setUserId(null);
         setIsAdmin(false);
@@ -33,22 +28,16 @@ function App() {
         return;
       }
       
-      console.log('API 요청 시작: /api/auth/status');
       const response = await api.get('/api/auth/status');
-      console.log('응답 데이터:', response.data);
       
       if (response.data.authenticated && response.data.user) {
-        console.log('인증 성공, 사용자:', response.data.user);
         setUsername(response.data.user.displayName || response.data.user.email || '사용자');
         setUserId(response.data.user.userId || null);
         setIsAdmin(response.data.user.isAdmin || false);
         setSessionExpired(false);
-        setHasShownExpiredAlert(false); // 로그인 성공 시 알림 표시 상태 초기화
+        setHasShownExpiredAlert(false);
       } else {
-        // 인증되지 않음
-        console.log('인증 실패');
         if (username && !hasShownExpiredAlert) {
-          // 이전에 로그인한 상태였고 아직 알림을 보여주지 않았다면
           setSessionExpired(true);
         }
         setUsername(null);
@@ -57,7 +46,6 @@ function App() {
       }
     } catch (error) {
       console.error('인증 상태 확인 오류:', error);
-      // 인증 오류시 토큰 제거
       setAuthToken(null);
       setUsername(null);
       setUserId(null);
@@ -66,6 +54,48 @@ function App() {
       setLoading(false);
     }
   };
+
+  // 소셜 로그인 메시지 리스너 설정
+  useEffect(() => {
+    const handleSocialLogin = (event: MessageEvent) => {
+      // 출처 검증
+      const allowedOrigins = [
+        process.env.VITE_API_URL || 'http://localhost:3000',
+        'http://localhost:5173',
+        'https://yj-0220.github.io'
+      ];
+      
+      if (!allowedOrigins.includes(event.origin)) {
+        return;
+      }
+      
+      const { data } = event;
+      
+      // 로그인 성공 메시지 처리
+      if (data && data.type === 'login_success') {
+        // 토큰 저장
+        localStorage.setItem('authToken', data.token);
+        if (data.refreshToken) {
+          localStorage.setItem('refreshToken', data.refreshToken);
+        }
+        
+        // 토큰 설정
+        setAuthToken(data.token);
+        
+        // 사용자 정보 설정
+        setUsername(data.user || '사용자');
+        
+        // 인증 상태 확인하여 추가 정보 업데이트
+        checkAuthStatus();
+      }
+    };
+    
+    window.addEventListener('message', handleSocialLogin);
+    
+    return () => {
+      window.removeEventListener('message', handleSocialLogin);
+    };
+  }, []);
 
   // 초기 로딩 및 세션 만료 확인
   useEffect(() => {
@@ -98,8 +128,9 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      // JWT 방식에서는 서버에 로그아웃 요청 필요 없음
       // 로컬에서 토큰 제거
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('refreshToken');
       setAuthToken(null);
       
       // 상태 초기화
@@ -116,7 +147,7 @@ function App() {
   useEffect(() => {
     if (sessionExpired && !hasShownExpiredAlert) {
       alert('세션이 만료되었습니다. 다시 로그인해주세요.');
-      setHasShownExpiredAlert(true); // 알림을 표시했음을 기록
+      setHasShownExpiredAlert(true);
       setSessionExpired(false);
     }
   }, [sessionExpired, hasShownExpiredAlert]);

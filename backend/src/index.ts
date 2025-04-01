@@ -11,6 +11,7 @@ import connectDB from "./db";
 import Contact from "./models/Contact";
 import axios from "axios";
 import jwt from 'jsonwebtoken';
+import session from 'express-session';
 
 // 환경 변수 로드
 dotenv.config();
@@ -54,6 +55,17 @@ app.use(
   })
 );
 
+// 세션 설정 - OAuth 인증 과정에서만 필요
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your_session_secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 60000 // 1분만 유지 (OAuth 인증 과정에만 필요)
+  }
+}));
+
 // 추가 보안 헤더 설정
 app.use((req, res, next) => {
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
@@ -62,6 +74,21 @@ app.use((req, res, next) => {
 
 //---------- Passport 설정 ----------//
 app.use(passport.initialize());
+app.use(passport.session()); // 세션 지원 추가
+
+// 세션에 사용자 직렬화/역직렬화 (최소한으로 유지)
+passport.serializeUser((user: any, done) => {
+  done(null, user._id);
+});
+
+passport.deserializeUser(async (id: string, done) => {
+  try {
+    const user = await User.findById(id);
+    done(null, user);
+  } catch (error) {
+    done(error, null);
+  }
+});
 
 // JWT 비밀키 설정
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
