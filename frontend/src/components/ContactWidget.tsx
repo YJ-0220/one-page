@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import axios from 'axios';
+import { submitContactForm } from '../api';
 
 const ContactWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -23,12 +23,8 @@ const ContactWidget = () => {
     try {
       setIsSending(true);
       
-      // 문의 전송 - 실제 API 호출
-      await axios.post('/api/contact', {
-        name,
-        email,
-        message
-      });
+      // 문의 전송 - API 모듈 사용
+      await submitContactForm(name, email, message);
       
       setSuccess(true);
       setName('');

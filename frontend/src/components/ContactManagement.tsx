@@ -1,178 +1,168 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
-
-interface Contact {
-  id: string;
-  name: string;
-  email: string;
-  message: string;
-  createdAt: string;
-  isRead: boolean;
-}
+import { getContactsList, markContactAsRead, Contact } from '../api';
 
 const ContactManagement = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
 
-  // 문의 목록 가져오기
+  useEffect(() => {
+    fetchContacts();
+  }, []);
+
   const fetchContacts = async () => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      setLoading(true);
-      const response = await axios.get('/api/admin/contacts', {
-        withCredentials: true
-      });
-      setContacts(response.data);
-      setError('');
+      const contactsData = await getContactsList();
+      setContacts(contactsData);
     } catch (err) {
-      setError('문의 목록을 불러오는데 실패했습니다.');
-      console.error('문의 목록 불러오기 오류:', err);
+      console.error('문의 데이터 로드 오류:', err);
+      setError('문의 데이터를 불러오는 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
   };
 
-  // 컴포넌트 마운트 시 문의 목록 로드
-  useEffect(() => {
-    fetchContacts();
-  }, []);
-
-  // 문의 읽음 표시
-  const markAsRead = async (contactId: string) => {
+  const handleMarkAsRead = async (contactId: string) => {
     try {
-      await axios.patch(`/api/admin/contacts/${contactId}`, {
-        isRead: true
-      }, {
-        withCredentials: true
-      });
-      
-      // 로컬 상태 업데이트
+      await markContactAsRead(contactId);
+      // 문의 목록 업데이트
       setContacts(contacts.map(contact => 
-        contact.id === contactId ? { ...contact, isRead: true } : contact
+        contact._id === contactId ? {...contact, isRead: true} : contact
       ));
       
-      if (selectedContact && selectedContact.id === contactId) {
-        setSelectedContact({ ...selectedContact, isRead: true });
+      // 선택된 문의 정보도 업데이트
+      if (selectedContact && selectedContact._id === contactId) {
+        setSelectedContact({...selectedContact, isRead: true});
       }
     } catch (err) {
       console.error('문의 상태 업데이트 오류:', err);
+      alert('문의 상태를 업데이트하는 중 오류가 발생했습니다.');
     }
   };
 
-  // 날짜 형식화
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('ko-KR', {
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
+  const showContactDetail = (contact: Contact) => {
+    setSelectedContact(contact);
+    
+    // 읽지 않은 문의인 경우 자동으로 읽음 처리
+    if (!contact.isRead) {
+      handleMarkAsRead(contact._id);
+    }
   };
 
-  if (loading) return <div className="flex justify-center p-4">로딩 중...</div>;
+  if (loading) {
+    return <div className="p-6 text-center">문의 데이터를 불러오는 중...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-center">
+        <p className="text-red-500 mb-4">{error}</p>
+        <button 
+          onClick={fetchContacts} 
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          다시 시도
+        </button>
+      </div>
+    );
+  }
+
+  const unreadCount = contacts.filter(contact => !contact.isRead).length;
 
   return (
-    <div className="bg-white shadow-md rounded-lg overflow-hidden">
-      <div className="p-4">
-        <h3 className="text-lg font-semibold mb-4">문의 관리</h3>
-        
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
+    <div className="p-6">
+      <h3 className="text-lg font-semibold mb-4">
+        문의 관리 
+        {unreadCount > 0 && (
+          <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-sm rounded-full">
+            새 문의 {unreadCount}개
+          </span>
         )}
-        
-        <div className="flex flex-col md:flex-row">
-          {/* 문의 목록 */}
-          <div className="w-full md:w-1/3 md:border-r md:pr-4">
-            {contacts.length === 0 ? (
-              <div className="text-center p-4 text-gray-500">
-                아직 문의가 없습니다.
-              </div>
-            ) : (
-              <div className="overflow-y-auto max-h-96">
-                {contacts.map((contact, index) => (
-                  <div 
-                    key={`${contact.id}-${index}`}
-                    className={`p-3 border-b cursor-pointer hover:bg-gray-50 ${
-                      selectedContact?.id === contact.id ? 'bg-blue-50' : ''
-                    } ${!contact.isRead ? 'font-semibold' : ''}`}
-                    onClick={() => setSelectedContact(contact)}
+      </h3>
+      
+      <div className="flex flex-col md:flex-row gap-4">
+        {/* 문의 목록 */}
+        <div className="md:w-1/2 lg:w-2/5">
+          {contacts.length === 0 ? (
+            <p className="text-gray-500">접수된 문의가 없습니다.</p>
+          ) : (
+            <div className="border rounded-lg overflow-hidden max-h-[600px] overflow-y-auto">
+              <ul className="divide-y">
+                {contacts.map(contact => (
+                  <li 
+                    key={contact._id} 
+                    className={`${!contact.isRead ? 'bg-blue-50' : ''} 
+                               ${selectedContact?._id === contact._id ? 'bg-gray-100' : ''}
+                               hover:bg-gray-50 cursor-pointer`}
+                    onClick={() => showContactDetail(contact)}
                   >
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">{contact.name}</span>
-                      {!contact.isRead && (
-                        <span className="bg-blue-500 rounded-full w-2 h-2"></span>
-                      )}
+                    <div className="p-4">
+                      <div className="flex justify-between items-start mb-1">
+                        <div className="font-medium flex items-center">
+                          {contact.name}
+                          {!contact.isRead && (
+                            <span className="ml-2 w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
+                          )}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {new Date(contact.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div className="text-sm text-gray-600">{contact.email}</div>
+                      <div className="text-sm text-gray-500 truncate mt-1">{contact.message}</div>
                     </div>
-                    <div className="text-xs text-gray-500 mt-1 truncate">
-                      {contact.message}
-                    </div>
-                    <div className="text-xs text-gray-400 mt-1">
-                      {formatDate(contact.createdAt)}
-                    </div>
-                  </div>
+                  </li>
                 ))}
-              </div>
-            )}
-          </div>
-          
-          {/* 문의 내용 상세 */}
-          <div className="w-full md:w-2/3 md:pl-4 mt-4 md:mt-0">
-            {selectedContact ? (
-              <div className="border rounded-lg p-4">
-                <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-medium">{selectedContact.name}님의 문의</h4>
+              </ul>
+            </div>
+          )}
+        </div>
+        
+        {/* 문의 상세 내용 */}
+        <div className="md:w-1/2 lg:w-3/5">
+          {selectedContact ? (
+            <div className="border rounded-lg p-4">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-lg font-medium">{selectedContact.name}님의 문의</h4>
+                <div className="flex items-center">
+                  <span className={`inline-block px-2 py-1 rounded text-sm ${
+                    selectedContact.isRead 
+                      ? 'bg-gray-100 text-gray-800' 
+                      : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    {selectedContact.isRead ? '읽음' : '새 문의'}
+                  </span>
+                  
                   {!selectedContact.isRead && (
-                    <button
-                      onClick={() => markAsRead(selectedContact.id)}
-                      className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
+                    <button 
+                      onClick={() => handleMarkAsRead(selectedContact._id)}
+                      className="ml-2 px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600"
                     >
                       읽음 표시
                     </button>
                   )}
                 </div>
-                
-                <div className="mb-2">
-                  <span className="text-gray-500 text-sm">이메일:</span>
-                  <a 
-                    href={`mailto:${selectedContact.email}`}
-                    className="ml-2 text-blue-500 text-sm"
-                  >
-                    {selectedContact.email}
-                  </a>
-                </div>
-                
-                <div className="mb-2">
-                  <span className="text-gray-500 text-sm">접수일시:</span>
-                  <span className="ml-2 text-sm">{formatDate(selectedContact.createdAt)}</span>
-                </div>
-                
-                <div className="mt-4">
-                  <span className="text-gray-500 text-sm block mb-1">문의 내용:</span>
-                  <div className="border rounded p-3 bg-gray-50 whitespace-pre-wrap">
-                    {selectedContact.message}
-                  </div>
-                </div>
-                
-                <div className="mt-4">
-                  <a 
-                    href={`mailto:${selectedContact.email}`}
-                    className="inline-block bg-blue-500 text-white px-3 py-2 rounded text-sm"
-                  >
-                    이메일로 답변하기
-                  </a>
-                </div>
               </div>
-            ) : (
-              <div className="h-full flex items-center justify-center text-gray-500 p-8">
-                좌측 목록에서 문의를 선택해주세요.
+              
+              <div className="mb-4">
+                <p className="text-sm text-gray-500">보낸 날짜: {new Date(selectedContact.createdAt).toLocaleString()}</p>
+                <p className="text-sm text-gray-500">이메일: {selectedContact.email}</p>
               </div>
-            )}
-          </div>
+              
+              <div className="border-t pt-4">
+                <h5 className="font-medium mb-2">문의 내용</h5>
+                <p className="whitespace-pre-wrap">{selectedContact.message}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="border rounded-lg p-4 flex items-center justify-center h-64 text-gray-500">
+              좌측 목록에서 문의를 선택하세요.
+            </div>
+          )}
         </div>
       </div>
     </div>

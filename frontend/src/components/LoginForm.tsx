@@ -1,6 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
-import { api, setAuthToken } from "../api/axios";
+import { userLogin } from "../api";
 
 interface LoginFormProps {
   onLogin: (username: string) => void;
@@ -25,25 +25,14 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
     try {
       setLoading(true);
 
-      // 로컬 로그인 API 호출
-      const response = await api.post(
-        "/api/auth/login",
-        {
-          email,
-          password,
-        }
-      );
-
-      // JWT 토큰 저장 (액세스 토큰과 리프레시 토큰)
-      const { accessToken, refreshToken, user } = response.data;
-      setAuthToken(accessToken, refreshToken);
+      // API 함수 사용하여 로그인
+      const response = await userLogin(email, password);
       
       // 로그인 상태 업데이트
-      onLogin(user.displayName || user.email);
+      onLogin(response.user.displayName || response.user.email);
       onClose();
     } catch (err: unknown) {
       // 오류 처리
-      console.error("로그인 오류:", err);
       if (axios.isAxiosError(err) && err.response?.data?.error) {
         setError(err.response.data.error);
       } else {
@@ -77,7 +66,11 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
       const data = event.data;
       if (data?.type === 'login_success' && data.token) {
         // 토큰 저장 및 로그인 처리
-        setAuthToken(data.token, data.refreshToken);
+        localStorage.setItem('authToken', data.token);
+        if (data.refreshToken) {
+          localStorage.setItem('refreshToken', data.refreshToken);
+        }
+        
         onLogin(data.user);
         onClose();
         window.removeEventListener('message', messageListener);
@@ -94,18 +87,6 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
       if (!popup || popup.closed) {
         clearInterval(checkPopup);
         window.removeEventListener('message', messageListener);
-        
-        // 백업: 로그인 상태 확인
-        setTimeout(() => {
-          api.get("/api/auth/status")
-            .then(res => {
-              if (res.data.authenticated && res.data.user) {
-                onLogin(res.data.user.displayName || res.data.user.email);
-                onClose();
-              }
-            })
-            .catch(() => {});
-        }, 1000);
       }
     }, 1000);
   };

@@ -4,8 +4,8 @@ import { authenticateJWT, isAdmin } from '../middleware/auth';
 
 const router = express.Router();
 
-// 문의 전송 API
-router.post('/', async (req, res) => {
+// 문의 제출 API
+router.post('/submit', async (req, res) => {
   const { name, email, message } = req.body;
 
   // 필수 필드 검증
@@ -32,7 +32,7 @@ router.post('/', async (req, res) => {
 });
 
 // 관리자용 문의 목록 조회 API
-router.get('/admin', authenticateJWT, isAdmin, async (req, res) => {
+router.get('/list', authenticateJWT, isAdmin, async (req, res) => {
   try {
     const contacts = await Contact.find().sort({ createdAt: -1 });
     res.json(contacts);
@@ -43,7 +43,7 @@ router.get('/admin', authenticateJWT, isAdmin, async (req, res) => {
 });
 
 // 관리자용 문의 읽음 표시 API
-router.patch('/admin/:id', authenticateJWT, isAdmin, async (req, res) => {
+router.patch('/mark-read/:id', authenticateJWT, isAdmin, async (req, res) => {
   try {
     const contact = await Contact.findByIdAndUpdate(
       req.params.id,

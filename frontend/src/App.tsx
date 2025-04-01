@@ -4,7 +4,7 @@ import Footer from "@/components/layout/Footer";
 import Home from "@/pages/Home";
 import AdminPage from "@/pages/Admin";
 import ContactWidget from "@/components/ContactWidget";
-import { api, setAuthToken } from './api/axios';
+import { checkAuthStatus as apiCheckAuthStatus, userLogout } from './api';
 
 function App() {
   const [activePage, setActivePage] = useState("home");
@@ -28,12 +28,12 @@ function App() {
         return;
       }
       
-      const response = await api.get('/api/auth/status');
+      const response = await apiCheckAuthStatus();
       
-      if (response.data.authenticated && response.data.user) {
-        setUsername(response.data.user.displayName || response.data.user.email || '사용자');
-        setUserId(response.data.user.userId || null);
-        setIsAdmin(response.data.user.isAdmin || false);
+      if (response.authenticated && response.user) {
+        setUsername(response.user.displayName || response.user.email || '사용자');
+        setUserId(response.user._id || null);
+        setIsAdmin(response.user.isAdmin || false);
         setSessionExpired(false);
         setHasShownExpiredAlert(false);
       } else {
@@ -46,7 +46,8 @@ function App() {
       }
     } catch (error) {
       console.error('인증 상태 확인 오류:', error);
-      setAuthToken(null);
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('refreshToken');
       setUsername(null);
       setUserId(null);
       setIsAdmin(false);
@@ -67,26 +68,20 @@ function App() {
         'one-page-mpod.onrender.com'
       ];
       
-      // 일부 문자열 포함 여부로 검증 (더 유연하게)
+      // 일부 문자열 포함 여부로 검증
       if (!allowedOrigins.some(origin => event.origin.includes(origin))) {
-        console.log('메시지 무시됨 (신뢰할 수 없는 출처):', event.origin);
         return;
       }
       
       const { data } = event;
       
       // 로그인 성공 메시지 처리
-      if (data && data.type === 'login_success') {
-        console.log('소셜 로그인 성공 메시지 수신:', data.provider);
-        
+      if (data && data.type === 'login_success' && data.token) {
         // 토큰 저장
         localStorage.setItem('authToken', data.token);
         if (data.refreshToken) {
           localStorage.setItem('refreshToken', data.refreshToken);
         }
-        
-        // 토큰 설정
-        setAuthToken(data.token, data.refreshToken);
         
         // 사용자 정보 설정
         setUsername(data.user || '사용자');
@@ -133,20 +128,14 @@ function App() {
   };
 
   const handleLogout = async () => {
-    try {
-      // 로컬에서 토큰 제거
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('refreshToken');
-      setAuthToken(null);
-      
-      // 상태 초기화
-      setUsername(null);
-      setUserId(null);
-      setIsAdmin(false);
-      setActivePage('home'); // 홈으로 리다이렉트
-    } catch (error) {
-      console.error('로그아웃 오류:', error);
-    }
+    // API 모듈의 로그아웃 함수 사용
+    userLogout();
+    
+    // 상태 초기화
+    setUsername(null);
+    setUserId(null);
+    setIsAdmin(false);
+    setActivePage('home'); // 홈으로 리다이렉트
   };
 
   // 세션 만료 알림 표시

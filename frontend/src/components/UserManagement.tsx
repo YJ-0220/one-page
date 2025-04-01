@@ -1,279 +1,145 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
-
-// axios 인스턴스 생성
-const api = axios.create({
-  baseURL: 'http://localhost:3000',
-  withCredentials: true
-});
-
-interface User {
-  _id: string;
-  userId: string;  // 랜덤 생성된 사용자 ID
-  displayName: string;
-  email: string;
-  photo: string;
-  isAdmin: boolean;
-  createdAt?: string;
-  lastLogin?: string;
-}
+import { getUsersList, toggleUserAdminRole, deleteUserById, User } from '../api';
 
 const UserManagement = () => {
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [editingUser, setEditingUser] = useState<User | null>(null);
-  
-  // 사용자 목록 가져오기
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
   const fetchUsers = async () => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      setLoading(true);
-      const response = await api.get('/api/admin/users');
-      setUsers(response.data);
-      setError('');
+      const usersData = await getUsersList();
+      setUsers(usersData);
     } catch (err) {
-      setError('사용자 목록을 불러오는데 실패했습니다.');
-      console.error('사용자 목록 불러오기 오류:', err);
+      console.error('사용자 데이터 로드 오류:', err);
+      setError('사용자 데이터를 불러오는 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
   };
 
-  // 컴포넌트 마운트 시 사용자 목록 로드
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  // 사용자 관리자 권한 토글
-  const toggleAdmin = async (userId: string, currentStatus: boolean) => {
-    if (!userId) {
-      setError('유효하지 않은 사용자입니다.');
-      return;
-    }
-
+  const handleToggleAdmin = async (userId: string) => {
     try {
-      await api.patch(`/api/admin/users/${userId}`, {
-        isAdmin: !currentStatus
-      });
-      
-      // 로컬 상태 업데이트
+      const response = await toggleUserAdminRole(userId);
+      // 사용자 목록 업데이트
       setUsers(users.map(user => 
-        user._id === userId ? { ...user, isAdmin: !currentStatus } : user
+        user._id === userId ? {...user, isAdmin: !user.isAdmin} : user
       ));
-    } catch (err) {
-      setError('권한 변경에 실패했습니다.');
-      console.error('권한 변경 오류:', err);
-    }
-  };
-
-  // 사용자 삭제
-  const deleteUser = async (userId: string) => {
-    if (window.confirm('정말로 이 사용자를 삭제하시겠습니까?')) {
-      try {
-        await api.delete(`/api/admin/users/${userId}`);
-        // 로컬 상태 업데이트
-        setUsers(users.filter(user => user._id !== userId));
-      } catch (err) {
-        setError('사용자 삭제에 실패했습니다.');
-        console.error('사용자 삭제 오류:', err);
+      
+      let errorMessage = '관리자 권한이 변경되었습니다.';
+      if (response.message) {
+        errorMessage = response.message;
       }
+      
+      alert(errorMessage);
+    } catch (err) {
+      console.error('관리자 권한 변경 오류:', err);
+      
+      let errorMessage = '관리자 권한을 변경하는 중 오류가 발생했습니다.';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      
+      alert(errorMessage);
     }
   };
 
-  // 사용자 정보 편집
-  const updateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingUser) return;
+  const handleDeleteUser = async (userId: string) => {
+    if (!window.confirm('정말 이 사용자를 삭제하시겠습니까?')) return;
     
     try {
-      await api.put(`/api/admin/users/${editingUser._id}`, editingUser);
-      
-      // 로컬 상태 업데이트
-      setUsers(users.map(user => 
-        user._id === editingUser._id ? editingUser : user
-      ));
-      
-      // 편집 모드 종료
-      setEditingUser(null);
+      await deleteUserById(userId);
+      // 사용자 목록에서 삭제된 유저 제거
+      setUsers(users.filter(user => user._id !== userId));
+      alert('사용자가 삭제되었습니다.');
     } catch (err) {
-      setError('사용자 정보 업데이트에 실패했습니다.');
-      console.error('사용자 업데이트 오류:', err);
+      console.error('사용자 삭제 오류:', err);
+      alert('사용자를 삭제하는 중 오류가 발생했습니다.');
     }
   };
 
-  // 검색 필터링된 사용자 목록
-  const filteredUsers = users.filter(user => 
-    user.displayName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  if (loading) {
+    return <div className="p-6 text-center">사용자 데이터를 불러오는 중...</div>;
+  }
 
-  if (loading) return <div className="flex justify-center p-4">로딩 중...</div>;
+  if (error) {
+    return (
+      <div className="p-6 text-center">
+        <p className="text-red-500 mb-4">{error}</p>
+        <button 
+          onClick={fetchUsers} 
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          다시 시도
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-white shadow-md rounded-lg overflow-hidden">
-      <div className="p-4">
-        <h3 className="text-lg font-semibold mb-4">사용자 관리</h3>
-        
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
-        
-        {/* 검색 필드 */}
-        <div className="mb-4">
-          <input
-            type="text"
-            placeholder="이름 또는 이메일로 검색"
-            className="w-full p-2 border rounded"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        
-        {/* 사용자 편집 폼 */}
-        {editingUser && (
-          <div className="mb-4 p-4 border rounded bg-gray-50">
-            <h4 className="font-medium mb-2">사용자 정보 편집</h4>
-            <form onSubmit={updateUser}>
-              <div className="mb-2">
-                <label className="block text-sm font-medium">이름</label>
-                <input
-                  type="text"
-                  className="w-full p-2 border rounded"
-                  value={editingUser.displayName}
-                  onChange={(e) => setEditingUser({...editingUser, displayName: e.target.value})}
-                />
-              </div>
-              <div className="mb-2">
-                <label className="block text-sm font-medium">이메일</label>
-                <input
-                  type="email"
-                  className="w-full p-2 border rounded"
-                  value={editingUser.email}
-                  onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
-                />
-              </div>
-              <div className="mb-4 flex items-center">
-                <input
-                  type="checkbox"
-                  id="isAdmin"
-                  className="mr-2"
-                  checked={editingUser.isAdmin}
-                  onChange={(e) => setEditingUser({...editingUser, isAdmin: e.target.checked})}
-                />
-                <label htmlFor="isAdmin" className="text-sm">관리자 권한</label>
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  type="submit"
-                  className="bg-blue-500 text-white px-3 py-1 rounded"
-                >
-                  저장
-                </button>
-                <button
-                  type="button"
-                  className="bg-gray-300 px-3 py-1 rounded"
-                  onClick={() => setEditingUser(null)}
-                >
-                  취소
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-        
-        {/* 사용자 목록 */}
+    <div className="p-6">
+      <h3 className="text-lg font-semibold mb-4">사용자 관리</h3>
+      
+      {users.length === 0 ? (
+        <p className="text-gray-500">등록된 사용자가 없습니다.</p>
+      ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  ID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  사용자
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  이메일
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  권한
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  작업
-                </th>
+          <table className="min-w-full bg-white border">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="py-2 px-4 border">이름</th>
+                <th className="py-2 px-4 border">이메일</th>
+                <th className="py-2 px-4 border">가입일</th>
+                <th className="py-2 px-4 border">최근 로그인</th>
+                <th className="py-2 px-4 border">상태</th>
+                <th className="py-2 px-4 border">액션</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredUsers.length > 0 ? (
-                filteredUsers.map((user, index) => (
-                  <tr key={`${user._id}-${index}`}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {user.userId}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        {user.photo && (
-                          <img 
-                            src={user.photo} 
-                            alt={user.displayName} 
-                            className="h-8 w-8 rounded-full mr-3"
-                          />
-                        )}
-                        <div className="text-sm font-medium text-gray-900">
-                          {user.displayName}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {user.email}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span 
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          user.isAdmin 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}
-                      >
-                        {user.isAdmin ? '관리자' : '일반 사용자'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <button
-                        className="text-indigo-600 hover:text-indigo-900 mr-2"
-                        onClick={() => setEditingUser(user)}
-                      >
-                        편집
-                      </button>
-                      <button
-                        className="text-indigo-600 hover:text-indigo-900 mr-2"
-                        onClick={() => toggleAdmin(user._id, user.isAdmin)}
-                      >
-                        {user.isAdmin ? '권한 해제' : '권한 부여'}
-                      </button>
-                      <button
-                        className="text-red-600 hover:text-red-900"
-                        onClick={() => deleteUser(user._id)}
-                      >
-                        삭제
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500">
-                    {searchTerm ? '검색 결과가 없습니다.' : '등록된 사용자가 없습니다.'}
+            <tbody>
+              {users.map(user => (
+                <tr key={user._id} className="border-b">
+                  <td className="py-2 px-4 border">{user.displayName}</td>
+                  <td className="py-2 px-4 border">{user.email}</td>
+                  <td className="py-2 px-4 border">
+                    {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}
+                  </td>
+                  <td className="py-2 px-4 border">
+                    {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : '-'}
+                  </td>
+                  <td className="py-2 px-4 border text-center">
+                    {user.isAdmin ? (
+                      <span className="inline-block px-2 py-1 bg-green-100 text-green-800 rounded">관리자</span>
+                    ) : (
+                      <span className="inline-block px-2 py-1 bg-gray-100 text-gray-800 rounded">일반</span>
+                    )}
+                  </td>
+                  <td className="py-2 px-4 border">
+                    <button
+                      onClick={() => handleToggleAdmin(user._id)}
+                      className="mr-2 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    >
+                      {user.isAdmin ? '관리자 해제' : '관리자 지정'}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteUser(user._id)}
+                      className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                    >
+                      삭제
+                    </button>
                   </td>
                 </tr>
-              )}
+              ))}
             </tbody>
           </table>
         </div>
-      </div>
+      )}
     </div>
   );
 };
