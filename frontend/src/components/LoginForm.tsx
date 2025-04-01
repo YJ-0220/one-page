@@ -72,7 +72,7 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
         clearInterval(checkPopup);
         // 로그인 상태 다시 확인
         api
-          .get("/api/auth/status")
+          .get("/auth/status")
           .then((res) => {
             if (res.data.authenticated && res.data.user) {
               console.log("소셜 로그인 성공:", res.data.user);
