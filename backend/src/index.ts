@@ -87,13 +87,10 @@ app.use(
     secret: process.env.SESSION_SECRET || "your_secret_key",
     resave: false,
     saveUninitialized: false,
-    store: MongoStore.create({
-      mongoUrl: process.env.MONGODB_URI,
-      ttl: 14 * 24 * 60 * 60, // 세션 유효기간 14일
-    }),
     cookie: {
-      sameSite: 'none',  // 크로스 도메인 요청 허용
-      secure: true,      // HTTPS 필수
+      secure: true,       // 로컬에서는 작동 안 함
+      sameSite: 'none',   // 크로스 도메인에 필수
+      httpOnly: true,     // JavaScript에서 접근 불가
       maxAge: 14 * 24 * 60 * 60 * 1000
     }
   })
@@ -104,12 +101,17 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // Passport 사용자 직렬화/역직렬화
-passport.serializeUser((user, done) => {
-  done(null, user);
+passport.serializeUser((user: any, done) => {
+  done(null, user._id);
 });
 
-passport.deserializeUser((obj: any, done) => {
-  done(null, obj);
+passport.deserializeUser(async (id: string, done) => {
+  try {
+    const user = await User.findById(id);
+    done(null, user);
+  } catch (error) {
+    done(error, null);
+  }
 });
 
 //line 전략 설정
