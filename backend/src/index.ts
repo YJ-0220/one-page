@@ -68,7 +68,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
 // JWT 토큰 생성 함수 (액세스 토큰과 리프레시 토큰 모두 생성)
 const generateTokens = (user: any) => {
-  // 액세스 토큰 (짧은 유효기간)
+  // 액세스 토큰 (30일로 설정)
   const accessToken = jwt.sign(
     {
       userId: user._id,
@@ -77,14 +77,14 @@ const generateTokens = (user: any) => {
       isAdmin: user.isAdmin
     }, 
     JWT_SECRET, 
-    { expiresIn: '1h' }
+    { expiresIn: '30d' }
   );
   
-  // 리프레시 토큰 (긴 유효기간)
+  // 리프레시 토큰 (60일로 설정)
   const refreshToken = jwt.sign(
     { userId: user._id },
     JWT_SECRET,
-    { expiresIn: '14d' }
+    { expiresIn: '60d' }
   );
   
   return { accessToken, refreshToken };
@@ -98,7 +98,7 @@ const generateToken = (user: any) => {
     displayName: user.displayName,
     isAdmin: user.isAdmin
   };
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' });
 };
 
 // JWT 인증 미들웨어
@@ -125,14 +125,22 @@ const authenticateJWT = (req: any, res: any, next: any) => {
 const optionalAuthenticateJWT = (req: any, res: any, next: any) => {
   const authHeader = req.headers.authorization;
   
+  console.log('Authorization 헤더:', authHeader);
+  
   if (authHeader) {
     const token = authHeader.split(' ')[1];
+    console.log('요청 토큰:', token ? token.substring(0, 10) + '...' : 'undefined');
     
     jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
       if (!err) {
+        console.log('JWT 토큰 검증 성공, 사용자 정보:', user);
         req.user = user;
+      } else {
+        console.error('JWT 토큰 검증 실패:', err.message);
       }
     });
+  } else {
+    console.log('인증 헤더 없음');
   }
   
   next();
@@ -542,6 +550,9 @@ app.get("/", (req, res) => {
 
 // 인증 상태 확인 엔드포인트
 app.get("/api/auth/status", optionalAuthenticateJWT, (req, res) => {
+  console.log('인증 상태 요청 처리 중...');
+  console.log('req.user:', req.user);
+  
   if (req.user) {
     return res.json({
       status: "OK",

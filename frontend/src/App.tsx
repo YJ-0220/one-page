@@ -18,9 +18,14 @@ function App() {
   // 백엔드에서 로그인 상태 확인
   const checkAuthStatus = async () => {
     try {
+      console.log('로그인 상태 확인 시작...');
       
       // 토큰이 없으면 인증되지 않은 상태로 설정
-      if (!localStorage.getItem('authToken')) {
+      const token = localStorage.getItem('authToken');
+      console.log('저장된 토큰 존재 여부:', !!token);
+      
+      if (!token) {
+        console.log('토큰 없음, 비인증 상태로 설정');
         setUsername(null);
         setUserId(null);
         setIsAdmin(false);
@@ -28,9 +33,12 @@ function App() {
         return;
       }
       
+      console.log('API 요청 시작: /api/auth/status');
       const response = await api.get('/api/auth/status');
+      console.log('응답 데이터:', response.data);
       
       if (response.data.authenticated && response.data.user) {
+        console.log('인증 성공, 사용자:', response.data.user);
         setUsername(response.data.user.displayName || response.data.user.email || '사용자');
         setUserId(response.data.user.userId || null);
         setIsAdmin(response.data.user.isAdmin || false);
@@ -38,6 +46,7 @@ function App() {
         setHasShownExpiredAlert(false); // 로그인 성공 시 알림 표시 상태 초기화
       } else {
         // 인증되지 않음
+        console.log('인증 실패');
         if (username && !hasShownExpiredAlert) {
           // 이전에 로그인한 상태였고 아직 알림을 보여주지 않았다면
           setSessionExpired(true);

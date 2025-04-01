@@ -12,6 +12,20 @@ const api = axios.create({
   withCredentials: true,
 });
 
+// 요청 인터셉터 추가 - 모든 요청에 토큰 디버깅
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('authToken');
+    console.log('Request to:', config.url);
+    console.log('Auth token exists:', !!token);
+    console.log('Auth header set:', !!config.headers.Authorization);
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // 토큰 설정 유틸리티 함수
 export const setAuthToken = (token: string | null, refreshToken: string | null = null) => {
   if (token) {
