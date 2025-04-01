@@ -61,7 +61,7 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
 
     // 소셜 로그인 URL
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
-    const url = `${BACKEND_URL}/api/auth/${provider}`;
+    const url = `${BACKEND_URL}/auth/${provider}`;
 
     // 팝업 창 열기
     const popup = window.open(url, `${provider}Login`, popupOptions);
