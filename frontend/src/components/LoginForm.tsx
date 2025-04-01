@@ -64,6 +64,29 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
     const url = `${BACKEND_URL}/api/auth/${provider}`;
     console.log("소셜 로그인 URL:", url);
 
+    // 메시지 이벤트 리스너 설정
+    const messageListener = (event: MessageEvent) => {
+      // 메시지 출처 확인
+      if (event.origin !== BACKEND_URL) {
+        console.log("메시지 무시됨:", event.origin);
+        return;
+      }
+      
+      console.log("받은 메시지:", event.data);
+      
+      if (event.data.type === 'login_success') {
+        console.log("소셜 로그인 성공:", event.data.user);
+        onLogin(event.data.user);
+        onClose();
+        
+        // 업데이트 후 리스너 제거
+        window.removeEventListener('message', messageListener);
+      }
+    };
+    
+    // 메시지 리스너 등록
+    window.addEventListener('message', messageListener);
+
     // 팝업 창 열기
     const popup = window.open(url, `${provider}Login`, popupOptions);
 
@@ -71,6 +94,9 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
     const checkPopup = setInterval(() => {
       if (!popup || popup.closed) {
         clearInterval(checkPopup);
+        // 메시지 리스너 제거
+        window.removeEventListener('message', messageListener);
+        
         // 로그인 상태 다시 확인
         api
           .get("/api/auth/status")

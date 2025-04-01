@@ -394,16 +394,41 @@ app.get(
       : "구글사용자";
     const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
 
-    // HTML 대신 간결한 스크립트로 변경
+    // 디버깅 코드 추가 및 에러 처리
     res.send(`
       <script>
-        window.opener.postMessage({
-          type: 'login_success',
-          provider: 'google',
-          user: "${userName}"
-        }, "${clientUrl}");
-        setTimeout(() => window.close(), 300);
+        console.log("로그인 성공, 부모 창으로 메시지 전송 시도");
+        try {
+          if (window.opener) {
+            window.opener.postMessage({
+              type: 'login_success',
+              provider: 'google',
+              user: "${userName}"
+            }, "${clientUrl}");
+            console.log("메시지 전송 성공");
+          } else {
+            console.error("window.opener가 없습니다.");
+          }
+        } catch (err) {
+          console.error("메시지 전송 오류:", err);
+        }
+        
+        // 창 닫기 시도
+        console.log("팝업 창 닫기 시도");
+        setTimeout(() => {
+          try {
+            window.close();
+          } catch (err) {
+            console.error("창 닫기 오류:", err);
+            // 닫히지 않으면 링크 제공
+            document.body.innerHTML += '<p>창이 자동으로 닫히지 않으면 <a href="#" onclick="window.close()">여기를 클릭하세요</a></p>';
+          }
+        }, 1000);
       </script>
+      <div style="text-align: center; font-family: Arial, sans-serif; margin-top: 50px;">
+        <h3>로그인 완료!</h3>
+        <p>이 창은 자동으로 닫힙니다...</p>
+      </div>
     `);
   }
 );
