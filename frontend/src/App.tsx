@@ -18,7 +18,6 @@ function App() {
   // 백엔드에서 로그인 상태 확인
   const checkAuthStatus = async () => {
     try {
-      console.log('인증 상태 확인 중... API URL:', import.meta.env.VITE_BACKEND_URL);
       
       // 토큰이 없으면 인증되지 않은 상태로 설정
       if (!localStorage.getItem('authToken')) {
@@ -30,7 +29,6 @@ function App() {
       }
       
       const response = await api.get('/api/auth/status');
-      console.log('인증 응답:', response.data);
       
       if (response.data.authenticated && response.data.user) {
         setUsername(response.data.user.displayName || response.data.user.email || '사용자');

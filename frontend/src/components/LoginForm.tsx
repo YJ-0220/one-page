@@ -34,9 +34,9 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
         }
       );
 
-      // JWT 토큰 저장
-      const { token, user } = response.data;
-      setAuthToken(token);
+      // JWT 토큰 저장 (액세스 토큰과 리프레시 토큰)
+      const { accessToken, refreshToken, user } = response.data;
+      setAuthToken(accessToken, refreshToken);
       
       // 로그인 상태 업데이트
       onLogin(user.displayName || user.email);
@@ -80,8 +80,9 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
       if (event.data.type === 'login_success' && event.data.token) {
         console.log("소셜 로그인 성공:", event.data.user);
         
-        // JWT 토큰 저장
-        setAuthToken(event.data.token);
+        // JWT 토큰 저장 (액세스 토큰과 리프레시 토큰)
+        const { token: accessToken, refreshToken } = event.data;
+        setAuthToken(accessToken, refreshToken);
         
         // 로그인 상태 업데이트
         onLogin(event.data.user);

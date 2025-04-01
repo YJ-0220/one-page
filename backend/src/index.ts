@@ -66,7 +66,31 @@ app.use(passport.initialize());
 // JWT 비밀키 설정
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
-// JWT 토큰 생성 함수
+// JWT 토큰 생성 함수 (액세스 토큰과 리프레시 토큰 모두 생성)
+const generateTokens = (user: any) => {
+  // 액세스 토큰 (짧은 유효기간)
+  const accessToken = jwt.sign(
+    {
+      userId: user._id,
+      email: user.email,
+      displayName: user.displayName,
+      isAdmin: user.isAdmin
+    }, 
+    JWT_SECRET, 
+    { expiresIn: '1h' }
+  );
+  
+  // 리프레시 토큰 (긴 유효기간)
+  const refreshToken = jwt.sign(
+    { userId: user._id },
+    JWT_SECRET,
+    { expiresIn: '14d' }
+  );
+  
+  return { accessToken, refreshToken };
+};
+
+// 기존 토큰 생성 함수를 유지 (호환성)
 const generateToken = (user: any) => {
   const payload = {
     userId: user._id,
@@ -74,7 +98,7 @@ const generateToken = (user: any) => {
     displayName: user.displayName,
     isAdmin: user.isAdmin
   };
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '14d' });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
 };
 
 // JWT 인증 미들웨어
@@ -294,8 +318,8 @@ app.get(
   (req, res) => {
     const user = req.user as any;
     
-    // JWT 토큰 생성
-    const token = generateToken(user);
+    // JWT 토큰 생성 (액세스 토큰과 리프레시 토큰)
+    const { accessToken, refreshToken } = generateTokens(user);
     
     const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
     const userName = user
@@ -311,7 +335,8 @@ app.get(
             window.opener.postMessage({
               type: 'login_success',
               provider: 'google',
-              token: "${token}",
+              token: "${accessToken}",
+              refreshToken: "${refreshToken}",
               user: "${userName}"
             }, "${clientUrl}");
             console.log("메시지 전송 성공");
@@ -351,8 +376,8 @@ app.get(
   (req, res) => {
     const user = req.user as any;
     
-    // JWT 토큰 생성
-    const token = generateToken(user);
+    // JWT 토큰 생성 (액세스 토큰과 리프레시 토큰)
+    const { accessToken, refreshToken } = generateTokens(user);
     
     const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
     const userName = user ? user.displayName || "라인사용자" : "라인사용자";
@@ -365,7 +390,8 @@ app.get(
             window.opener.postMessage({
               type: 'login_success',
               provider: 'line',
-              token: "${token}",
+              token: "${accessToken}",
+              refreshToken: "${refreshToken}",
               user: "${userName}"
             }, "${clientUrl}");
             console.log("메시지 전송 성공");
@@ -462,8 +488,9 @@ app.get("/api/auth/kakao/callback", async (req, res) => {
       return res.status(500).send("사용자 생성 중 오류가 발생했습니다.");
     }
 
-    // JWT 토큰 생성
-    const token = generateToken(user);
+    // JWT 토큰 생성 (액세스 토큰과 리프레시 토큰)
+    const { accessToken, refreshToken } = generateTokens(user);
+    
     const userName = user.displayName || "카카오사용자";
     const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
 
@@ -476,7 +503,8 @@ app.get("/api/auth/kakao/callback", async (req, res) => {
             window.opener.postMessage({
               type: 'login_success',
               provider: 'kakao',
-              token: "${token}",
+              token: "${accessToken}",
+              refreshToken: "${refreshToken}",
               user: "${userName}"
             }, "${clientUrl}");
             console.log("메시지 전송 성공");
@@ -540,12 +568,13 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(401).json({ error: "이메일 또는 비밀번호가 올바르지 않습니다." });
     }
 
-    // JWT 토큰 생성
-    const token = generateToken(user);
+    // JWT 토큰 생성 (액세스 토큰과 리프레시 토큰)
+    const { accessToken, refreshToken } = generateTokens(user);
 
     // 토큰 반환
     res.json({
-      token,
+      accessToken,
+      refreshToken,
       user: {
         userId: user._id,
         email: user.email,
@@ -556,6 +585,34 @@ app.post("/api/auth/login", async (req, res) => {
   } catch (error) {
     console.error("로그인 오류:", error);
     res.status(500).json({ error: "로그인 처리 중 오류가 발생했습니다." });
+  }
+});
+
+// 토큰 갱신 엔드포인트 추가
+app.post("/api/auth/refresh-token", async (req, res) => {
+  const { refreshToken } = req.body;
+  
+  if (!refreshToken) {
+    return res.status(401).json({ error: "리프레시 토큰이 필요합니다." });
+  }
+  
+  try {
+    // 리프레시 토큰 검증
+    const decoded = jwt.verify(refreshToken, JWT_SECRET) as any;
+    
+    // 사용자 조회
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
+    }
+    
+    // 새 토큰 발급
+    const tokens = generateTokens(user);
+    
+    res.json(tokens);
+  } catch (error) {
+    console.error("토큰 갱신 오류:", error);
+    res.status(403).json({ error: "유효하지 않은 토큰입니다." });
   }
 });
 
