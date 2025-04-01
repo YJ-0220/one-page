@@ -63,8 +63,8 @@ app.use(
   cors({
     origin: [
       process.env.CLIENT_URL || "http://localhost:5173",
-      "https://yj-0220.github.io", // 대소문자 수정
-      "https://yj-0220.github.io/one-page", // 슬래시 제거
+      "https://yj-0220.github.io",
+      "https://yj-0220.github.io/one-page"
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -91,6 +91,11 @@ app.use(
       mongoUrl: process.env.MONGODB_URI,
       ttl: 14 * 24 * 60 * 60, // 세션 유효기간 14일
     }),
+    cookie: {
+      sameSite: 'none',  // 크로스 도메인 요청 허용
+      secure: true,      // HTTPS 필수
+      maxAge: 14 * 24 * 60 * 60 * 1000
+    }
   })
 );
 
@@ -316,34 +321,20 @@ app.get("/api/auth/kakao/callback", async (req, res) => {
         return res.status(500).send("로그인 처리 중 오류가 발생했습니다.");
       }
 
-      // 클라이언트로 메시지 전송
       const userName = user!.displayName || "카카오사용자";
       const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
 
-      const html = `
-        <!DOCTYPE html>
-        <html>
-        <head><title>로그인 완료</title></head>
-        <body>
-          <h3>로그인 처리 중...</h3>
-          <script>
-            try {
-              window.opener.postMessage({
-                type: 'login_success',
-                provider: 'kakao',
-                user: "${userName}"
-              }, "${clientUrl}");
-              setTimeout(() => window.close(), 300);
-            } catch (err) {
-              console.error("메시지 전송 오류:", err);
-              window.close();
-            }
-          </script>
-        </body>
-        </html>
-      `;
-
-      res.send(html);
+      // HTML 대신 간결한 스크립트로 변경
+      res.send(`
+        <script>
+          window.opener.postMessage({
+            type: 'login_success',
+            provider: 'kakao',
+            user: "${userName}"
+          }, "${clientUrl}");
+          setTimeout(() => window.close(), 300);
+        </script>
+      `);
     });
   } catch (error) {
     console.error("카카오 로그인 오류:", error);
@@ -397,42 +388,23 @@ app.get(
     session: true,
   }),
   (req, res) => {
-    // 로그인 성공 후 HTML과 스크립트를 반환하여 부모 창으로 메시지 전달
     const user = req.user as any;
     const userName = user
       ? user.displayName || user.email || "구글사용자"
       : "구글사용자";
     const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
 
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>로그인 완료</title>
-      </head>
-      <body>
-        <h3>로그인 처리 중...</h3>
-        <script>
-          try {
-            // 부모 창으로 메시지 전송 - targetOrigin을 정확히 지정
-            window.opener.postMessage({
-              type: 'login_success',
-              provider: 'google',
-              user: "${userName}"
-            }, "${clientUrl}");
-            
-            // 잠시 후 창 닫기 (부모 창에서 메시지를 받을 시간을 주기 위해)
-            setTimeout(() => window.close(), 300);
-          } catch (err) {
-            console.error("메시지 전송 오류:", err);
-            window.close();
-          }
-        </script>
-      </body>
-      </html>
-    `;
-
-    res.send(html);
+    // HTML 대신 간결한 스크립트로 변경
+    res.send(`
+      <script>
+        window.opener.postMessage({
+          type: 'login_success',
+          provider: 'google',
+          user: "${userName}"
+        }, "${clientUrl}");
+        setTimeout(() => window.close(), 300);
+      </script>
+    `);
   }
 );
 
@@ -448,30 +420,17 @@ app.get(
     const userName = user ? user.displayName || "라인사용자" : "라인사용자";
     const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
 
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head><title>로그인 완료</title></head>
-      <body>
-        <h3>로그인 처리 중...</h3>
-        <script>
-          try {
-            window.opener.postMessage({
-              type: 'login_success',
-              provider: 'line',
-              user: "${userName}"
-            }, "${clientUrl}");
-            setTimeout(() => window.close(), 300);
-          } catch (err) {
-            console.error("메시지 전송 오류:", err);
-            window.close();
-          }
-        </script>
-      </body>
-      </html>
-    `;
-
-    res.send(html);
+    // HTML 대신 간결한 스크립트로 변경
+    res.send(`
+      <script>
+        window.opener.postMessage({
+          type: 'login_success',
+          provider: 'line',
+          user: "${userName}"
+        }, "${clientUrl}");
+        setTimeout(() => window.close(), 300);
+      </script>
+    `);
   }
 );
 
