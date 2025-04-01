@@ -4,7 +4,7 @@ import Footer from "@/components/layout/Footer";
 import Home from "@/pages/Home";
 import AdminPage from "@/pages/Admin";
 import ContactWidget from "@/components/ContactWidget";
-import { api } from './api/axios';
+import { api, setAuthToken } from './api/axios';
 
 function App() {
   const [activePage, setActivePage] = useState("home");
@@ -18,7 +18,19 @@ function App() {
   // 백엔드에서 로그인 상태 확인
   const checkAuthStatus = async () => {
     try {
+      console.log('인증 상태 확인 중... API URL:', import.meta.env.VITE_BACKEND_URL);
+      
+      // 토큰이 없으면 인증되지 않은 상태로 설정
+      if (!localStorage.getItem('authToken')) {
+        setUsername(null);
+        setUserId(null);
+        setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
+      
       const response = await api.get('/api/auth/status');
+      console.log('인증 응답:', response.data);
       
       if (response.data.authenticated && response.data.user) {
         setUsername(response.data.user.displayName || response.data.user.email || '사용자');
@@ -38,6 +50,11 @@ function App() {
       }
     } catch (error) {
       console.error('인증 상태 확인 오류:', error);
+      // 인증 오류시 토큰 제거
+      setAuthToken(null);
+      setUsername(null);
+      setUserId(null);
+      setIsAdmin(false);
     } finally {
       setLoading(false);
     }
@@ -74,7 +91,11 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await api.post('/api/auth/logout');
+      // JWT 방식에서는 서버에 로그아웃 요청 필요 없음
+      // 로컬에서 토큰 제거
+      setAuthToken(null);
+      
+      // 상태 초기화
       setUsername(null);
       setUserId(null);
       setIsAdmin(false);

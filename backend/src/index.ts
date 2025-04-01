@@ -1,5 +1,4 @@
 import express from "express";
-import session from "express-session";
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as LineStrategy } from "passport-line";
@@ -11,7 +10,7 @@ import User from "./models/User";
 import connectDB from "./db";
 import Contact from "./models/Contact";
 import axios from "axios";
-const MongoStore = require("connect-mongo");
+import jwt from 'jsonwebtoken';
 
 // 환경 변수 로드
 dotenv.config();
@@ -19,23 +18,6 @@ dotenv.config();
 // 앱 및 포트 설정
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MONGODB_URI = process.env.MONGODB_URI;
-const apiUrl = process.env.BACKEND_URL || "http://localhost:3000";
-
-//깃허브 백엔드 배포 테스트
-if (apiUrl) {
-  fetch(`${apiUrl}/api/auth/status`, {
-    credentials: "include",
-  })
-    .then((res) => {
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-      return res.json();
-    })
-    .then((data) => console.log("Auth status:", data))
-    .catch((err) => console.error("Error checking auth status:", err));
-}
 
 // 필수 환경 변수 확인
 if (
@@ -74,46 +56,89 @@ app.use(
 
 // 추가 보안 헤더 설정
 app.use((req, res, next) => {
-  // COOP 설정 - 팝업 창과의 통신을 위해 same-origin-allow-popups 사용
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
-  // COEP 설정
-  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
   next();
 });
 
-// 세션 설정
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || "your_secret_key",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: true,       // 로컬에서는 작동 안 함
-      sameSite: 'none',   // 크로스 도메인에 필수
-      httpOnly: true,     // JavaScript에서 접근 불가
-      maxAge: 14 * 24 * 60 * 60 * 1000
-    }
-  })
-);
-
 //---------- Passport 설정 ----------//
 app.use(passport.initialize());
-app.use(passport.session());
 
-// Passport 사용자 직렬화/역직렬화
-passport.serializeUser((user: any, done) => {
-  done(null, user._id);
-});
+// JWT 비밀키 설정
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
-passport.deserializeUser(async (id: string, done) => {
-  try {
-    const user = await User.findById(id);
-    done(null, user);
-  } catch (error) {
-    done(error, null);
+// JWT 토큰 생성 함수
+const generateToken = (user: any) => {
+  const payload = {
+    userId: user._id,
+    email: user.email,
+    displayName: user.displayName,
+    isAdmin: user.isAdmin
+  };
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '14d' });
+};
+
+// JWT 인증 미들웨어
+const authenticateJWT = (req: any, res: any, next: any) => {
+  const authHeader = req.headers.authorization;
+  
+  if (authHeader) {
+    const token = authHeader.split(' ')[1];
+    
+    jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+      if (err) {
+        return res.sendStatus(403);
+      }
+      
+      req.user = user;
+      next();
+    });
+  } else {
+    res.sendStatus(401);
   }
-});
+};
 
+// 선택적 JWT 인증 미들웨어 - 토큰이 없어도 다음으로 진행
+const optionalAuthenticateJWT = (req: any, res: any, next: any) => {
+  const authHeader = req.headers.authorization;
+  
+  if (authHeader) {
+    const token = authHeader.split(' ')[1];
+    
+    jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+      if (!err) {
+        req.user = user;
+      }
+    });
+  }
+  
+  next();
+};
+
+// 관리자 권한 확인 미들웨어
+const isAdmin = (req: any, res: any, next: any) => {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader) {
+    return res.status(401).json({ error: "인증되지 않은 요청입니다." });
+  }
+  
+  const token = authHeader.split(' ')[1];
+  
+  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+    if (err) {
+      return res.status(403).json({ error: "유효하지 않은 토큰입니다." });
+    }
+    
+    if (!user.isAdmin) {
+      return res.status(403).json({ error: "관리자 권한이 필요합니다." });
+    }
+    
+    req.user = user;
+    next();
+  });
+};
+
+//---------- OAuth 전략 설정 ----------//
 //line 전략 설정
 passport.use(
   new LineStrategy(
@@ -178,9 +203,7 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL:
-        `${process.env.BACKEND_URL}/api/auth/google/callback` ||
-        "/api/auth/google/callback",
+      callbackURL: `${process.env.BACKEND_URL}/api/auth/google/callback`,
       scope: ["profile", "email"],
       proxy: true,
     },
@@ -237,6 +260,19 @@ passport.use(
   )
 );
 
+//---------- 인증 관련 라우트 ----------//
+// 구글 로그인 시작 엔드포인트
+app.get(
+  "/api/auth/google",
+  passport.authenticate("google", {
+    scope: ["profile", "email"],
+    prompt: "select_account", // 항상 계정 선택 화면 표시
+  })
+);
+
+// 라인 로그인 시작 엔드포인트
+app.get("/api/auth/line", passport.authenticate("line"));
+
 // 카카오 OAuth 전략 설정
 app.get("/api/auth/kakao", (req, res) => {
   // 카카오 로그인 페이지로 리다이렉트
@@ -247,6 +283,115 @@ app.get("/api/auth/kakao", (req, res) => {
     `${kakaoAuthURL}?client_id=${process.env.KAKAO_CLIENT_ID}&redirect_uri=${redirect_uri}&response_type=code`
   );
 });
+
+// 구글 로그인 콜백 처리 엔드포인트
+app.get(
+  "/api/auth/google/callback",
+  passport.authenticate("google", {
+    failureRedirect: `${process.env.CLIENT_URL}/login`,
+    session: false,
+  }),
+  (req, res) => {
+    const user = req.user as any;
+    
+    // JWT 토큰 생성
+    const token = generateToken(user);
+    
+    const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+    const userName = user
+      ? user.displayName || user.email || "구글사용자"
+      : "구글사용자";
+
+    // 토큰을 postMessage로 전달
+    res.send(`
+      <script>
+        console.log("로그인 성공, 부모 창으로 메시지 전송 시도");
+        try {
+          if (window.opener) {
+            window.opener.postMessage({
+              type: 'login_success',
+              provider: 'google',
+              token: "${token}",
+              user: "${userName}"
+            }, "${clientUrl}");
+            console.log("메시지 전송 성공");
+          } else {
+            console.error("window.opener가 없습니다.");
+          }
+        } catch (err) {
+          console.error("메시지 전송 오류:", err);
+        }
+        
+        // 창 닫기 시도
+        console.log("팝업 창 닫기 시도");
+        setTimeout(() => {
+          try {
+            window.close();
+          } catch (err) {
+            console.error("창 닫기 오류:", err);
+            document.body.innerHTML += '<p>창이 자동으로 닫히지 않으면 <a href="#" onclick="window.close()">여기를 클릭하세요</a></p>';
+          }
+        }, 1000);
+      </script>
+      <div style="text-align: center; font-family: Arial, sans-serif; margin-top: 50px;">
+        <h3>로그인 완료!</h3>
+        <p>이 창은 자동으로 닫힙니다...</p>
+      </div>
+    `);
+  }
+);
+
+// LINE 콜백 처리
+app.get(
+  "/api/auth/line/callback",
+  passport.authenticate("line", {
+    failureRedirect: `${process.env.CLIENT_URL}/login`,
+    session: false,
+  }),
+  (req, res) => {
+    const user = req.user as any;
+    
+    // JWT 토큰 생성
+    const token = generateToken(user);
+    
+    const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+    const userName = user ? user.displayName || "라인사용자" : "라인사용자";
+
+    res.send(`
+      <script>
+        console.log("로그인 성공, 부모 창으로 메시지 전송 시도");
+        try {
+          if (window.opener) {
+            window.opener.postMessage({
+              type: 'login_success',
+              provider: 'line',
+              token: "${token}",
+              user: "${userName}"
+            }, "${clientUrl}");
+            console.log("메시지 전송 성공");
+          } else {
+            console.error("window.opener가 없습니다.");
+          }
+        } catch (err) {
+          console.error("메시지 전송 오류:", err);
+        }
+        
+        setTimeout(() => {
+          try {
+            window.close();
+          } catch (err) {
+            console.error("창 닫기 오류:", err);
+            document.body.innerHTML += '<p>창이 자동으로 닫히지 않으면 <a href="#" onclick="window.close()">여기를 클릭하세요</a></p>';
+          }
+        }, 1000);
+      </script>
+      <div style="text-align: center; font-family: Arial, sans-serif; margin-top: 50px;">
+        <h3>로그인 완료!</h3>
+        <p>이 창은 자동으로 닫힙니다...</p>
+      </div>
+    `);
+  }
+);
 
 // 카카오 콜백 처리
 app.get("/api/auth/kakao/callback", async (req, res) => {
@@ -317,86 +462,12 @@ app.get("/api/auth/kakao/callback", async (req, res) => {
       return res.status(500).send("사용자 생성 중 오류가 발생했습니다.");
     }
 
-    // 로그인 처리
-    req.login(user as any, (err) => {
-      if (err) {
-        return res.status(500).send("로그인 처리 중 오류가 발생했습니다.");
-      }
-
-      const userName = user!.displayName || "카카오사용자";
-      const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
-
-      // HTML 대신 간결한 스크립트로 변경
-      res.send(`
-        <script>
-          window.opener.postMessage({
-            type: 'login_success',
-            provider: 'kakao',
-            user: "${userName}"
-          }, "${clientUrl}");
-          setTimeout(() => window.close(), 300);
-        </script>
-      `);
-    });
-  } catch (error) {
-    console.error("카카오 로그인 오류:", error);
-    res.redirect(`${process.env.CLIENT_URL}/login?error=카카오 로그인 실패`);
-  }
-});
-
-//---------- 미들웨어 함수 ----------//
-// 인증 상태 확인 미들웨어
-const isAuthenticated = (
-  req: express.Request,
-  res: express.Response,
-  next: express.NextFunction
-) => {
-  if (req.isAuthenticated()) {
-    return next();
-  }
-  res.status(401).json({ error: "인증되지 않은 요청입니다." });
-};
-
-// 관리자 권한 확인 미들웨어
-const isAdmin = (
-  req: express.Request,
-  res: express.Response,
-  next: express.NextFunction
-) => {
-  if (req.isAuthenticated() && req.user && (req.user as any).isAdmin) {
-    return next();
-  }
-  res.status(403).json({ error: "관리자 권한이 필요합니다." });
-};
-
-//---------- 인증 관련 라우트 ----------//
-// 구글 로그인 시작 엔드포인트
-app.get(
-  "/api/auth/google",
-  passport.authenticate("google", {
-    scope: ["profile", "email"],
-    prompt: "select_account", // 항상 계정 선택 화면 표시
-  })
-);
-
-//라인 연결
-app.get("/api/auth/line", passport.authenticate("line"));
-
-// 구글 로그인 콜백 처리 엔드포인트
-app.get(
-  "/api/auth/google/callback",
-  passport.authenticate("google", {
-    failureRedirect: `${process.env.CLIENT_URL}/login`,
-    session: true,
-  }),
-  (req, res) => {
-    const user = req.user as any;
-    const userName = user
-      ? user.displayName || user.email || "구글사용자"
-      : "구글사용자";
+    // JWT 토큰 생성
+    const token = generateToken(user);
+    const userName = user.displayName || "카카오사용자";
     const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
 
-    // 디버깅 코드 추가 및 에러 처리
+    // 토큰을 postMessage로 전달
     res.send(`
       <script>
         console.log("로그인 성공, 부모 창으로 메시지 전송 시도");
@@ -404,7 +475,8 @@ app.get(
           if (window.opener) {
             window.opener.postMessage({
               type: 'login_success',
-              provider: 'google',
+              provider: 'kakao',
+              token: "${token}",
               user: "${userName}"
             }, "${clientUrl}");
             console.log("메시지 전송 성공");
@@ -415,14 +487,11 @@ app.get(
           console.error("메시지 전송 오류:", err);
         }
         
-        // 창 닫기 시도
-        console.log("팝업 창 닫기 시도");
         setTimeout(() => {
           try {
             window.close();
           } catch (err) {
             console.error("창 닫기 오류:", err);
-            // 닫히지 않으면 링크 제공
             document.body.innerHTML += '<p>창이 자동으로 닫히지 않으면 <a href="#" onclick="window.close()">여기를 클릭하세요</a></p>';
           }
         }, 1000);
@@ -432,43 +501,20 @@ app.get(
         <p>이 창은 자동으로 닫힙니다...</p>
       </div>
     `);
+  } catch (error) {
+    console.error("카카오 로그인 오류:", error);
+    res.redirect(`${process.env.CLIENT_URL}/login?error=카카오 로그인 실패`);
   }
-);
-
-// 라인 콜백 처리
-app.get(
-  "/api/auth/line/callback",
-  passport.authenticate("line", {
-    failureRedirect: `${process.env.CLIENT_URL}/login`,
-    session: true,
-  }),
-  (req, res) => {
-    const user = req.user as any;
-    const userName = user ? user.displayName || "라인사용자" : "라인사용자";
-    const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
-
-    // HTML 대신 간결한 스크립트로 변경
-    res.send(`
-      <script>
-        window.opener.postMessage({
-          type: 'login_success',
-          provider: 'line',
-          user: "${userName}"
-        }, "${clientUrl}");
-        setTimeout(() => window.close(), 300);
-      </script>
-    `);
-  }
-);
+});
 
 // 서버 상태 확인 엔드포인트
 app.get("/", (req, res) => {
   res.json({ message: "서버가 작동중 입니다." });
 });
 
-// 로그인 상태 확인 엔드포인트
-app.get("/api/auth/status", (req, res) => {
-  if (req.isAuthenticated()) {
+// 인증 상태 확인 엔드포인트
+app.get("/api/auth/status", optionalAuthenticateJWT, (req, res) => {
+  if (req.user) {
     return res.json({
       status: "OK",
       authenticated: true,
@@ -481,302 +527,35 @@ app.get("/api/auth/status", (req, res) => {
   }
 });
 
-// 로그아웃 엔드포인트 (POST 방식)
-app.post("/api/auth/logout", (req, res) => {
-  req.logout((err) => {
-    if (err) {
-      return res
-        .status(500)
-        .json({ error: "로그아웃 중 오류가 발생했습니다." });
-    }
-    res.json({ message: "로그아웃 성공" });
-  });
-});
-
-// 로그아웃 엔드포인트 (GET 방식 - 호환성 유지)
-app.get("/api/auth/logout", (req, res) => {
-  req.logout((err) => {
-    if (err) {
-      return res
-        .status(500)
-        .json({ error: "로그아웃 중 오류가 발생했습니다." });
-    }
-    res.json({ message: "로그아웃 성공" });
-  });
-});
-
-// 세션 상태 확인 엔드포인트 추가
-app.get("/api/auth/session-info", (req, res) => {
-  if (req.session && req.session.cookie) {
-    // 세션 만료까지 남은 시간 계산 (밀리초)
-    const maxAge = req.session.cookie.maxAge || 0;
-    const expiresAt = new Date(Date.now() + maxAge);
-
-    res.json({
-      authenticated: req.isAuthenticated(),
-      sessionExpires: {
-        maxAge,
-        expiresAt,
-        remainingTimeMinutes: Math.floor(maxAge / 60000), // 분 단위로 변환
-      },
-    });
-  } else {
-    res.json({
-      authenticated: false,
-      sessionExpires: null,
-    });
-  }
-});
-
-//---------- 사용자 정보 라우트 ----------//
-// 사용자 정보 조회 엔드포인트
-app.get("/api/user", isAuthenticated, (req, res) => {
-  res.json(req.user);
-});
-
-// 사용자 정보 수정 API
-app.put("/api/user/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { newUserId, currentPassword, newPassword } = req.body;
-    const session = req.session as any;
-
-    // 로그인 확인
-    if (!session.user) {
-      return res.status(401).json({ error: "로그인이 필요합니다." });
-    }
-
-    // 관리자가 아니고 자신의 정보가 아닌 경우
-    if (!session.user.isAdmin && session.user.id !== id) {
-      return res
-        .status(403)
-        .json({ error: "자신의 정보만 수정할 수 있습니다." });
-    }
-
-    // 사용자 찾기
-    const user = await User.findById(id);
-    if (!user) {
-      return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
-    }
-
-    // ID 변경이 요청된 경우
-    if (newUserId && newUserId !== user.id) {
-      // ID 중복 확인
-      const existingUser = await User.findOne({ id: newUserId });
-      if (existingUser) {
-        return res.status(400).json({ error: "이미 사용 중인 ID입니다." });
-      }
-      user.id = newUserId;
-    }
-
-    // 비밀번호 변경이 요청된 경우
-    if (newPassword) {
-      if (!currentPassword) {
-        return res.status(400).json({ error: "현재 비밀번호를 입력해주세요." });
-      }
-      const isMatch = await user.comparePassword(currentPassword);
-      if (!isMatch) {
-        return res
-          .status(400)
-          .json({ error: "현재 비밀번호가 일치하지 않습니다." });
-      }
-      user.password = newPassword;
-    }
-
-    await user.save();
-    res.json({ message: "회원정보가 수정되었습니다." });
-  } catch (error) {
-    console.error("회원정보 수정 오류:", error);
-    res.status(500).json({ error: "회원정보 수정 중 오류가 발생했습니다." });
-  }
-});
-
-//---------- 관리자 API 라우트 ----------//
-// 모든 사용자 목록 조회 (관리자만)
-app.get("/api/admin/users", isAdmin, async (req, res) => {
-  try {
-    const users = await User.find().select("-password");
-    res.json(users);
-  } catch (err) {
-    // 에러 처리
-    res.status(500).json({ error: "서버 오류가 발생했습니다." });
-  }
-});
-
-// 사용자 생성 (관리자만)
-app.post("/api/admin/users", isAdmin, async (req, res) => {
-  try {
-    const { displayName, email, password, isAdmin: userIsAdmin } = req.body;
-
-    // 필수 필드 검증
-    if (!displayName || !email || !password) {
-      return res.status(400).json({ error: "모든 필수 필드를 입력해주세요." });
-    }
-
-    // 이메일 중복 확인
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ error: "이미 등록된 이메일입니다." });
-    }
-
-    // 사용자 생성
-    const user = await User.create({
-      displayName,
-      email,
-      password,
-      isAdmin: userIsAdmin || false,
-    });
-
-    // 비밀번호 제외하고 응답
-    const userResponse = user.toObject();
-    res.status(201).json({
-      ...userResponse,
-      password: undefined,
-    });
-  } catch (err) {
-    console.error("사용자 생성 오류:", err);
-    res.status(500).json({ error: "서버 오류가 발생했습니다." });
-  }
-});
-
-// 특정 사용자 조회 (관리자만)
-app.get("/api/admin/users/:id", isAdmin, async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id).select("-password");
-    if (!user) {
-      return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
-    }
-    res.json(user);
-  } catch (err) {
-    console.error("사용자 조회 오류:", err);
-    res.status(500).json({ error: "서버 오류가 발생했습니다." });
-  }
-});
-
-// 사용자 정보 수정 (관리자만)
-app.put("/api/admin/users/:id", isAdmin, async (req, res) => {
-  try {
-    const { displayName, email, isAdmin: userIsAdmin } = req.body;
-    const updates: any = {};
-
-    if (displayName) updates.displayName = displayName;
-    if (email) updates.email = email;
-    if (userIsAdmin !== undefined) updates.isAdmin = userIsAdmin;
-
-    const user = await User.findByIdAndUpdate(req.params.id, updates, {
-      new: true,
-    }).select("-password");
-
-    if (!user) {
-      return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
-    }
-
-    res.json(user);
-  } catch (err) {
-    console.error("사용자 수정 오류:", err);
-    res.status(500).json({ error: "서버 오류가 발생했습니다." });
-  }
-});
-
-// 사용자 관리자 권한 수정 (관리자만)
-app.patch("/api/admin/users/:id", isAdmin, async (req, res) => {
-  try {
-    // 권한 변경이 요청에 포함된 경우에만 수정
-    if (req.body.isAdmin === undefined) {
-      return res.status(400).json({ error: "관리자 권한 정보가 필요합니다." });
-    }
-
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { isAdmin: req.body.isAdmin },
-      { new: true }
-    ).select("-password");
-
-    if (!user) {
-      return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
-    }
-
-    res.json(user);
-  } catch (err) {
-    console.error("사용자 권한 수정 오류:", err);
-    res.status(500).json({ error: "서버 오류가 발생했습니다." });
-  }
-});
-
-// 사용자 삭제 (관리자만)
-app.delete("/api/admin/users/:id", isAdmin, async (req, res) => {
-  try {
-    const user = await User.findByIdAndDelete(req.params.id);
-
-    if (!user) {
-      return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
-    }
-
-    res.json({ message: "사용자가 삭제되었습니다." });
-  } catch (err) {
-    console.error("사용자 삭제 오류:", err);
-    res.status(500).json({ error: "서버 오류가 발생했습니다." });
-  }
-});
-
-//---------- 로컬 로그인 API ----------//
-// 로컬 로그인 엔드포인트
+// 로그인 엔드포인트
 app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
 
-  // 이메일과 비밀번호 검증
-  if (!email || !password) {
-    return res
-      .status(400)
-      .json({ error: "이메일과 비밀번호를 모두 입력해주세요." });
-  }
-
   try {
-    // 사용자 찾기
+    // 이메일로 사용자 찾기
     const user = await User.findOne({ email });
-    if (!user) {
-      return res
-        .status(401)
-        .json({ error: "이메일 또는 비밀번호가 일치하지 않습니다." });
+
+    // 사용자가 없거나 비밀번호가 일치하지 않는 경우
+    if (!user || !(await user.comparePassword(password))) {
+      return res.status(401).json({ error: "이메일 또는 비밀번호가 올바르지 않습니다." });
     }
 
-    // 비밀번호 확인
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res
-        .status(401)
-        .json({ error: "이메일 또는 비밀번호가 일치하지 않습니다." });
-    }
+    // JWT 토큰 생성
+    const token = generateToken(user);
 
-    // 로그인 성공 시 사용자 세션 설정
-    const userObj = user.toObject();
-    req.login(
-      {
-        ...userObj,
-        password: undefined,
-      },
-      async (err) => {
-        if (err) {
-          return res
-            .status(500)
-            .json({ error: "로그인 중 오류가 발생했습니다." });
-        }
-
-        // 마지막 로그인 시간 업데이트
-        await User.findByIdAndUpdate(user._id, { lastLogin: new Date() });
-
-        return res.json({
-          message: "로그인 성공",
-          user: {
-            ...userObj,
-            password: undefined,
-          },
-        });
+    // 토큰 반환
+    res.json({
+      token,
+      user: {
+        userId: user._id,
+        email: user.email,
+        displayName: user.displayName,
+        isAdmin: user.isAdmin
       }
-    );
-  } catch (err) {
-    console.error("로그인 오류:", err);
-    res.status(500).json({ error: "서버 오류가 발생했습니다." });
+    });
+  } catch (error) {
+    console.error("로그인 오류:", error);
+    res.status(500).json({ error: "로그인 처리 중 오류가 발생했습니다." });
   }
 });
 
@@ -870,17 +649,5 @@ connectDB().then(() => {
 
 //---------- 서버 시작 ----------//
 app.listen(PORT, () => {
-  // 서버가 완전히 시작된 후 상태 확인
-  setTimeout(() => {
-    const apiUrl = process.env.BACKEND_URL || `http://localhost:${PORT}`;
-
-    fetch(`${apiUrl}/api/auth/status`, {
-      credentials: "include",
-    }).then((res) => {
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-      return res.json();
-    });
-  }, 3000); // 3초 지연
+  console.log(`서버가 ${PORT} 포트에서 실행 중입니다.`);
 });

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
-import { api } from "../api/axios";
+import { api, setAuthToken } from "../api/axios";
 
 interface LoginFormProps {
   onLogin: (username: string) => void;
@@ -34,8 +34,11 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
         }
       );
 
-      // 로그인 성공
-      const { user } = response.data;
+      // JWT 토큰 저장
+      const { token, user } = response.data;
+      setAuthToken(token);
+      
+      // 로그인 상태 업데이트
       onLogin(user.displayName || user.email);
       onClose();
     } catch (err: unknown) {
@@ -74,8 +77,13 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
       
       console.log("받은 메시지:", event.data);
       
-      if (event.data.type === 'login_success') {
+      if (event.data.type === 'login_success' && event.data.token) {
         console.log("소셜 로그인 성공:", event.data.user);
+        
+        // JWT 토큰 저장
+        setAuthToken(event.data.token);
+        
+        // 로그인 상태 업데이트
         onLogin(event.data.user);
         onClose();
         
