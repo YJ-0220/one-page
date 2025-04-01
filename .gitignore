@@ -26,3 +26,4 @@ dist-ssr
 # 백엔드 파일을 만들었으면 당연히 경로도 backend 폴더를 적었어야지;;
 # backend/.env
 .env
+.env.production
