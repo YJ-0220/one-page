@@ -55,9 +55,8 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
   };
 
   const handleSocialLogin = (provider: string) => {
-    // 팝업 창 크기 및 위치 설정
-    const width = 500;
-    const height = 600;
+    // 팝업 창 설정
+    const width = 500, height = 600;
     const left = window.screenX + (window.outerWidth - width) / 2;
     const top = window.screenY + (window.outerHeight - height) / 2;
     const popupOptions = `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`;
@@ -65,42 +64,26 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
     // 소셜 로그인 URL
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
     const url = `${BACKEND_URL}/api/auth/${provider}`;
-    console.log("소셜 로그인 URL:", url);
 
-    // 메시지 이벤트 리스너 설정
+    // 메시지 리스너 설정
     const messageListener = (event: MessageEvent) => {
-      // 메시지 출처 검증 - 더 포괄적인 출처 확인
-      const allowedOrigins = [
-        BACKEND_URL,
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "https://yj-0220.github.io"
-      ];
-      
-      if (!allowedOrigins.some(origin => event.origin.includes(origin))) {
-        console.log("메시지 무시됨 (다른 출처):", event.origin);
+      // 유효한 출처 확인
+      if (!event.origin.includes('localhost') && 
+          !event.origin.includes('yj-0220.github.io') && 
+          !event.origin.includes('onrender.com')) {
         return;
       }
       
-      console.log("받은 메시지:", event.data);
-      
-      if (event.data && event.data.type === 'login_success' && event.data.token) {
-        console.log("소셜 로그인 성공:", event.data.user);
-        
-        // JWT 토큰 저장 (액세스 토큰과 리프레시 토큰)
-        const { token: accessToken, refreshToken } = event.data;
-        setAuthToken(accessToken, refreshToken);
-        
-        // 로그인 상태 업데이트
-        onLogin(event.data.user);
+      const data = event.data;
+      if (data?.type === 'login_success' && data.token) {
+        // 토큰 저장 및 로그인 처리
+        setAuthToken(data.token, data.refreshToken);
+        onLogin(data.user);
         onClose();
-        
-        // 업데이트 후 리스너 제거
         window.removeEventListener('message', messageListener);
       }
     };
     
-    // 메시지 리스너 등록
     window.addEventListener('message', messageListener);
 
     // 팝업 창 열기
@@ -110,22 +93,19 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
     const checkPopup = setInterval(() => {
       if (!popup || popup.closed) {
         clearInterval(checkPopup);
-        // 메시지 리스너 제거
         window.removeEventListener('message', messageListener);
         
-        // 로그인 상태 다시 확인
-        api
-          .get("/api/auth/status")
-          .then((res) => {
-            if (res.data.authenticated && res.data.user) {
-              console.log("소셜 로그인 성공:", res.data.user);
-              onLogin(res.data.user.displayName || res.data.user.email);
-              onClose();
-            }
-          })
-          .catch((err) => {
-            console.error("로그인 상태 확인 오류:", err);
-          });
+        // 백업: 로그인 상태 확인
+        setTimeout(() => {
+          api.get("/api/auth/status")
+            .then(res => {
+              if (res.data.authenticated && res.data.user) {
+                onLogin(res.data.user.displayName || res.data.user.email);
+                onClose();
+              }
+            })
+            .catch(() => {});
+        }, 1000);
       }
     }, 1000);
   };

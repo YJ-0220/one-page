@@ -58,14 +58,18 @@ function App() {
   // 소셜 로그인 메시지 리스너 설정
   useEffect(() => {
     const handleSocialLogin = (event: MessageEvent) => {
-      // 출처 검증
+      // 출처 검증 - 더 유연한 검증 방식 적용
       const allowedOrigins = [
-        process.env.VITE_API_URL || 'http://localhost:3000',
-        'http://localhost:5173',
-        'https://yj-0220.github.io'
+        import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000',
+        'localhost:3000',
+        'localhost:5173',
+        'yj-0220.github.io',
+        'one-page-mpod.onrender.com'
       ];
       
-      if (!allowedOrigins.includes(event.origin)) {
+      // 일부 문자열 포함 여부로 검증 (더 유연하게)
+      if (!allowedOrigins.some(origin => event.origin.includes(origin))) {
+        console.log('메시지 무시됨 (신뢰할 수 없는 출처):', event.origin);
         return;
       }
       
@@ -73,6 +77,8 @@ function App() {
       
       // 로그인 성공 메시지 처리
       if (data && data.type === 'login_success') {
+        console.log('소셜 로그인 성공 메시지 수신:', data.provider);
+        
         // 토큰 저장
         localStorage.setItem('authToken', data.token);
         if (data.refreshToken) {
@@ -80,7 +86,7 @@ function App() {
         }
         
         // 토큰 설정
-        setAuthToken(data.token);
+        setAuthToken(data.token, data.refreshToken);
         
         // 사용자 정보 설정
         setUsername(data.user || '사용자');

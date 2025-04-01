@@ -12,13 +12,13 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// 요청 인터셉터 추가 - 모든 요청에 토큰 디버깅
+// 요청 인터셉터 추가
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('authToken');
-    console.log('Request to:', config.url);
-    console.log('Auth token exists:', !!token);
-    console.log('Auth header set:', !!config.headers.Authorization);
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {
@@ -26,20 +26,16 @@ api.interceptors.request.use(
   }
 );
 
-// 토큰 설정 유틸리티 함수
+// 토큰 설정 함수
 export const setAuthToken = (token: string | null, refreshToken: string | null = null) => {
   if (token) {
-    // 로컬 스토리지에 토큰 저장
     localStorage.setItem('authToken', token);
-    // axios 인스턴스에 헤더 설정
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     
-    // 리프레시 토큰이 있으면 저장
     if (refreshToken) {
       localStorage.setItem('refreshToken', refreshToken);
     }
   } else {
-    // 토큰 제거
     localStorage.removeItem('authToken');
     localStorage.removeItem('refreshToken');
     delete api.defaults.headers.common['Authorization'];
@@ -47,71 +43,75 @@ export const setAuthToken = (token: string | null, refreshToken: string | null =
 };
 
 // 토큰 갱신 함수
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 const refreshAuthToken = async () => {
   try {
-    console.log('토큰 갱신 시도 중...');
-    
-    const refreshToken = localStorage.getItem('refreshToken');
-    if (!refreshToken) {
-      console.error('리프레시 토큰이 없습니다');
-      throw new Error('리프레시 토큰이 없습니다');
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      });
     }
+    
+    isRefreshing = true;
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (!refreshToken) throw new Error('리프레시 토큰 없음');
 
     const response = await axios.post(`${API_URL}/api/auth/refresh-token`, { refreshToken });
-    console.log('토큰 갱신 성공');
-    
     const { accessToken, refreshToken: newRefreshToken } = response.data;
     
-    // 토큰 저장 및 설정
     setAuthToken(accessToken, newRefreshToken);
+    processQueue(null, accessToken);
     return accessToken;
   } catch (error) {
-    console.error('토큰 갱신 실패:', error);
-    
-    // 토큰 만료 또는 갱신 실패 시 로그아웃 처리
     setAuthToken(null);
+    processQueue(error, null);
     
-    // 에러 메시지 표시 (5초 후 삭제)
     const errorMessage = document.createElement('div');
-    errorMessage.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background-color: #f44336; color: white; padding: 15px; border-radius: 4px; z-index: 10000;';
+    errorMessage.style.cssText = 'position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background-color: #f44336; color: white; padding: 15px; border-radius: 4px; z-index: 10000; box-shadow: 0 2px 5px rgba(0,0,0,0.3);';
     errorMessage.innerText = '세션이 만료되었습니다. 다시 로그인해주세요.';
     document.body.appendChild(errorMessage);
     
     setTimeout(() => {
-      if (errorMessage.parentNode) {
-        document.body.removeChild(errorMessage);
-      }
-      // 홈페이지로 리디렉션
+      if (errorMessage.parentNode) document.body.removeChild(errorMessage);
       window.location.href = '/';
-    }, 5000);
+    }, 3000);
     
     return null;
+  } finally {
+    isRefreshing = false;
   }
 };
 
-// 응답 인터셉터 설정 - 401 오류 시 토큰 갱신 시도
+// 응답 인터셉터
 api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
+  response => response,
+  async error => {
     const originalRequest = error.config;
     
-    if (!originalRequest) {
-      return Promise.reject(error);
-    }
-    
-    // 토큰 만료로 인한 401 오류이고 재시도하지 않은 요청인 경우
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      console.log('401 오류 감지, 토큰 갱신 시도');
+    if (originalRequest && error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       
-      // 토큰 갱신 시도
-      const newToken = await refreshAuthToken();
-      
-      if (newToken) {
-        console.log('새로운 토큰으로 요청 재시도');
-        // 기존 요청의 헤더에 새 토큰 설정
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
-        return api(originalRequest);
+      try {
+        const newToken = await refreshAuthToken();
+        if (newToken) {
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          return axios(originalRequest);
+        }
+      } catch (refreshError) {
+        return Promise.reject(refreshError);
       }
     }
     
