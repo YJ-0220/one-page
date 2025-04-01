@@ -15,7 +15,7 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    
+
     if (!email.trim() || !password.trim()) {
       setError("이메일과 비밀번호를 모두 입력해주세요.");
       return;
@@ -23,22 +23,26 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
 
     try {
       setLoading(true);
-      
+
       // 로컬 로그인 API 호출
-      const response = await axios.post('/api/auth/login', {
-        email,
-        password
-      }, {
-        withCredentials: true // 쿠키 전송을 위해 필요
-      });
-      
+      const response = await axios.post(
+        "/api/auth/login",
+        {
+          email,
+          password,
+        },
+        {
+          withCredentials: true, // 쿠키 전송을 위해 필요
+        }
+      );
+
       // 로그인 성공
       const { user } = response.data;
       onLogin(user.displayName || user.email);
       onClose();
     } catch (err: unknown) {
       // 오류 처리
-      console.error('로그인 오류:', err);
+      console.error("로그인 오류:", err);
       if (axios.isAxiosError(err) && err.response?.data?.error) {
         setError(err.response.data.error);
       } else {
@@ -68,20 +72,20 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
       if (!popup || popup.closed) {
         clearInterval(checkPopup);
         // 로그인 상태 다시 확인
-        fetch('/api/auth/status', {
-          credentials: 'include'
+        fetch("/api/auth/status", {
+          credentials: "include",
         })
-        .then(res => res.json())
-        .then(data => {
-          if (data.authenticated && data.user) {
-            console.log("소셜 로그인 성공:", data.user);
-            onLogin(data.user.displayName || data.user.email);
-            onClose();
-          }
-        })
-        .catch(err => {
-          console.error("로그인 상태 확인 오류:", err);
-        });
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.authenticated && data.user) {
+              console.log("소셜 로그인 성공:", data.user);
+              onLogin(data.user.displayName || data.user.email);
+              onClose();
+            }
+          })
+          .catch((err) => {
+            console.error("로그인 상태 확인 오류:", err);
+          });
       }
     }, 1000);
   };
@@ -156,7 +160,9 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
             <div className="w-full border-t border-gray-300"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">소셜 계정으로 로그인</span>
+            <span className="px-2 bg-white text-gray-500">
+              소셜 계정으로 로그인
+            </span>
           </div>
         </div>
 
@@ -165,7 +171,12 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
             onClick={() => handleSocialLogin("google")}
             className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
           >
-            <svg className="w-5 h-5" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
+            <svg
+              className="w-5 h-5"
+              aria-hidden="true"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
               {/* Google G 아이콘 */}
               <path
                 d="M12.2461 12C12.2461 11.4477 12.6939 11 13.2461 11H20.9998C21.5521 11 21.9998 11.4477 21.9998 12C21.9998 12.5523 21.5521 13 20.9998 13H13.2461C12.6939 13 12.2461 12.5523 12.2461 12Z"
@@ -203,7 +214,12 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
             onClick={() => handleSocialLogin("line")}
             className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
           >
-            <svg className="w-5 h-5" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
+            <svg
+              className="w-5 h-5"
+              aria-hidden="true"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
               {/* LINE 아이콘 */}
               <path
                 d="M22 10.6c0-4.1-4.1-7.4-9.2-7.4s-9.2 3.3-9.2 7.4c0 3.7 3.2 6.7 7.6 7.3.3.1.7.2.8.5.1.3 0 .7-.1 1 0 0-.2.8 0 1 .1.2.7-.4.7-.4l2.9-1.7c.5-.3 1.1-.5 1.6-.5 2.9 0 6.9-2.3 6.9-7.2z"

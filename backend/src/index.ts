@@ -20,21 +20,21 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
-const apiUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+const apiUrl = process.env.BACKEND_URL || "http://localhost:3000";
 
 //깃허브 백엔드 배포 테스트
 if (apiUrl) {
   fetch(`${apiUrl}/api/auth/status`, {
     credentials: "include",
   })
-    .then(res => {
+    .then((res) => {
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
       return res.json();
     })
-    .then(data => console.log('Auth status:', data))
-    .catch(err => console.error('Error checking auth status:', err));
+    .then((data) => console.log("Auth status:", data))
+    .catch((err) => console.error("Error checking auth status:", err));
 }
 
 // 필수 환경 변수 확인
@@ -469,6 +469,11 @@ app.get(
   }
 );
 
+// 서버 상태 확인 엔드포인트
+app.get("/", (req, res) => {
+  res.json({ message: "서버가 작동중 입니다." });
+});
+
 // 로그인 상태 확인 엔드포인트
 app.get("/api/auth/status", (req, res) => {
   if (req.isAuthenticated()) {
@@ -872,12 +877,4 @@ connectDB().then(() => {
 });
 
 //---------- 서버 시작 ----------//
-app.listen(PORT, () => {
-  console.log(`서버가 http://localhost:${PORT} 에서 실행 중입니다.`);
-  console.log(
-    `구글 OAuth 콜백 URL: http://localhost:${PORT}/auth/google/callback`
-  );
-  console.log(
-    `라인 OAuth 콜백 URL: http://localhost:${PORT}/auth/line/callback`
-  );
-});
+app.listen(PORT, () => {});
