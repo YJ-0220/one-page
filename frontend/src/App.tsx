@@ -4,6 +4,7 @@ import Footer from "@/components/layout/Footer";
 import Home from "@/pages/Home";
 import AdminPage from "@/pages/Admin";
 import ContactWidget from "@/components/ContactWidget";
+import { api } from './api/axios';
 
 function App() {
   const [activePage, setActivePage] = useState("home");
@@ -17,28 +18,23 @@ function App() {
   // 백엔드에서 로그인 상태 확인
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch('/api/auth/status', {
-        credentials: 'include', // 쿠키 포함
-      });
+      const response = await api.get('/api/auth/status');
       
-      if (response.ok) {
-        const data = await response.json();
-        if (data.authenticated && data.user) {
-          setUsername(data.user.displayName || data.user.email || '사용자');
-          setUserId(data.user.userId || null);
-          setIsAdmin(data.user.isAdmin || false);
-          setSessionExpired(false);
-          setHasShownExpiredAlert(false); // 로그인 성공 시 알림 표시 상태 초기화
-        } else {
-          // 인증되지 않음
-          if (username && !hasShownExpiredAlert) {
-            // 이전에 로그인한 상태였고 아직 알림을 보여주지 않았다면
-            setSessionExpired(true);
-          }
-          setUsername(null);
-          setUserId(null);
-          setIsAdmin(false);
+      if (response.data.authenticated && response.data.user) {
+        setUsername(response.data.user.displayName || response.data.user.email || '사용자');
+        setUserId(response.data.user.userId || null);
+        setIsAdmin(response.data.user.isAdmin || false);
+        setSessionExpired(false);
+        setHasShownExpiredAlert(false); // 로그인 성공 시 알림 표시 상태 초기화
+      } else {
+        // 인증되지 않음
+        if (username && !hasShownExpiredAlert) {
+          // 이전에 로그인한 상태였고 아직 알림을 보여주지 않았다면
+          setSessionExpired(true);
         }
+        setUsername(null);
+        setUserId(null);
+        setIsAdmin(false);
       }
     } catch (error) {
       console.error('인증 상태 확인 오류:', error);
@@ -78,10 +74,7 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include', // 쿠키 포함
-      });
+      await api.post('/api/auth/logout');
       setUsername(null);
       setUserId(null);
       setIsAdmin(false);
