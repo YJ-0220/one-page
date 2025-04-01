@@ -113,7 +113,7 @@ passport.use(
     {
       channelID: process.env.LINE_CHANNEL_ID as string,
       channelSecret: process.env.LINE_CHANNEL_SECRET as string,
-      callbackURL: `${process.env.BACKEND_URL}/auth/line/callback`,
+      callbackURL: `${process.env.BACKEND_URL}/api/auth/line/callback`,
       scope: "profile openid email",
     },
     async (
@@ -171,7 +171,7 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "/auth/google/callback",
+      callbackURL: "/api/auth/google/callback",
       scope: ["profile", "email"],
     },
     async (accessToken, refreshToken, profile, done) => {
@@ -228,10 +228,10 @@ passport.use(
 );
 
 // 카카오 OAuth 전략 설정
-app.get("/auth/kakao", (req, res) => {
+app.get("/api/auth/kakao", (req, res) => {
   // 카카오 로그인 페이지로 리다이렉트
   const kakaoAuthURL = "https://kauth.kakao.com/oauth/authorize";
-  const redirect_uri = `${process.env.BACKEND_URL}/auth/kakao/callback`;
+  const redirect_uri = `${process.env.BACKEND_URL}/api/auth/kakao/callback`;
 
   res.redirect(
     `${kakaoAuthURL}?client_id=${process.env.KAKAO_CLIENT_ID}&redirect_uri=${redirect_uri}&response_type=code`
@@ -239,10 +239,10 @@ app.get("/auth/kakao", (req, res) => {
 });
 
 // 카카오 콜백 처리
-app.get("/auth/kakao/callback", async (req, res) => {
+app.get("/api/auth/kakao/callback", async (req, res) => {
   const code = req.query.code;
   const kakaoTokenURL = "https://kauth.kakao.com/oauth/token";
-  const redirect_uri = `${process.env.BACKEND_URL}/auth/kakao/callback`;
+  const redirect_uri = `${process.env.BACKEND_URL}/api/auth/kakao/callback`;
 
   try {
     // 토큰 요청
@@ -376,7 +376,7 @@ const isAdmin = (
 //---------- 인증 관련 라우트 ----------//
 // 구글 로그인 시작 엔드포인트
 app.get(
-  "/auth/google",
+  "/api/auth/google",
   passport.authenticate("google", {
     scope: ["profile", "email"],
     prompt: "select_account", // 항상 계정 선택 화면 표시
@@ -384,11 +384,11 @@ app.get(
 );
 
 //라인 연결
-app.get("/auth/line", passport.authenticate("line"));
+app.get("/api/auth/line", passport.authenticate("line"));
 
 // 구글 로그인 콜백 처리 엔드포인트
 app.get(
-  "/auth/google/callback",
+  "/api/auth/google/callback",
   passport.authenticate("google", {
     failureRedirect: `${process.env.CLIENT_URL}/login`,
     session: true,
@@ -435,7 +435,7 @@ app.get(
 
 // 라인 콜백 처리
 app.get(
-  "/auth/line/callback",
+  "/api/auth/line/callback",
   passport.authenticate("line", {
     failureRedirect: `${process.env.CLIENT_URL}/login`,
     session: true,
