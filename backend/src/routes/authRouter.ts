@@ -56,26 +56,96 @@ const createSuccessResponse = (accessToken: string, refreshToken: string, userNa
     <head>
       <title>로그인 성공</title>
       <script>
-        // postMessage로 데이터 전송 (더 안정적)
-        if (window.opener) {
-          window.opener.postMessage({
-            type: 'LOGIN_SUCCESS',
-            token: "${accessToken}",
-            refreshToken: "${refreshToken}",
-            user: "${userName}"
-          }, "${CLIENT_URL}");
-          
-          // 잠시 후 창 닫기 시도
-          setTimeout(() => window.close(), 1000);
+        // 디버깅용 콘솔
+        console.log("로그인 성공: 토큰과 사용자 정보 전송 시도");
+        
+        function completeLogin() {
+          try {
+            if (window.opener) {
+              // localStorage에 직접 저장
+              try {
+                window.opener.localStorage.setItem('authToken', "${accessToken}");
+                window.opener.localStorage.setItem('refreshToken', "${refreshToken}");
+                window.opener.localStorage.setItem('userName', "${userName}");
+                console.log("부모 창에 토큰 저장 완료");
+                
+                // postMessage로도 전송 (이중 안전장치)
+                window.opener.postMessage({
+                  type: 'LOGIN_SUCCESS',
+                  token: "${accessToken}",
+                  refreshToken: "${refreshToken}", 
+                  user: "${userName}"
+                }, "*");
+                
+                // 명시적인 이벤트 트리거 시도
+                try {
+                  // 부모 창에 사용자 정의 이벤트 발생
+                  const loginEvent = new window.opener.CustomEvent('socialLoginSuccess', {
+                    detail: { user: "${userName}" }
+                  });
+                  window.opener.dispatchEvent(loginEvent);
+                  console.log("부모 창에 이벤트 발생");
+                } catch(eventError) {
+                  console.log("이벤트 발생 실패:", eventError);
+                }
+                
+                // 부모 창 리로드 (마지막 수단)
+                setTimeout(() => {
+                  if (window.opener && !window.opener.closed) {
+                    window.opener.location.reload();
+                  }
+                  window.close();
+                }, 1000);
+              } catch(e) {
+                // localStorage 접근 실패 시 메시지로 전달
+                console.error("부모 창 localStorage 접근 오류:", e);
+                window.opener.postMessage({
+                  type: 'LOGIN_SUCCESS',
+                  token: "${accessToken}",
+                  refreshToken: "${refreshToken}", 
+                  user: "${userName}"
+                }, "*");
+                
+                setTimeout(() => window.close(), 1000);
+              }
+            } else {
+              // 팝업이 아닌 경우 메인 페이지로 리디렉션
+              window.location.href = "${CLIENT_URL}?token=${accessToken}&refresh=${refreshToken}&user=${userName}";
+            }
+          } catch(e) {
+            console.error("로그인 완료 처리 중 오류:", e);
+            document.getElementById('status').textContent = "오류 발생: " + e.message;
+            document.getElementById('manualClose').style.display = 'block';
+          }
         }
+        
+        // 페이지 로드 시 실행
+        window.onload = function() {
+          document.getElementById('status').textContent = '로그인 성공! 메인 페이지로 이동합니다...';
+          // 잠시 후 로그인 완료 처리
+          setTimeout(completeLogin, 500);
+        };
       </script>
+      <style>
+        body {font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #f5f5f5;}
+        .container {max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);}
+        h2 {color: #4CAF50;}
+        button {padding: 10px 20px; background: #4285f4; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 20px;}
+        #status {margin: 20px 0; font-weight: bold;}
+        .error {color: red; margin-top: 10px; font-size: 12px;}
+        #manualClose {display: none; margin-top: 20px;}
+      </style>
     </head>
-    <body style="text-align:center; font-family:sans-serif; padding-top:50px;">
-      <h2>로그인 성공!</h2>
-      <p>잠시만 기다려주세요...</p>
-      <button onclick="window.close()" style="padding: 10px 20px; margin-top: 20px; cursor: pointer;">
-        창 닫기 (자동으로 닫히지 않는 경우)
-      </button>
+    <body>
+      <div class="container">
+        <h2>로그인 성공!</h2>
+        <p id="status">메인 페이지로 이동 중입니다...</p>
+        <div id="manualClose">
+          <p>자동으로 처리되지 않았습니다. 아래 버튼을 클릭한 후 페이지를 새로고침 해보세요.</p>
+          <button onclick="window.close()">창 닫기</button>
+          <button onclick="completeLogin()">다시 시도</button>
+        </div>
+      </div>
     </body>
     </html>
   `;

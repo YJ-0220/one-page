@@ -88,7 +88,7 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
 
   // 소셜 로그인 함수
   const handleSocialLogin = (provider: string) => {
-    // 소셜 로그인은 API가 아닌 BASE_URL 사용 (백엔드 경로에 맞춤)
+    // 소셜 로그인 URL 구성 (API 경로 중복 제거)
     const socialLoginUrl = `${BASE_URL}/api/auth/${provider}`;
     
     console.log(`${provider} 로그인 시도:`, socialLoginUrl);
@@ -100,11 +100,44 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
     const top = window.innerHeight / 2 - height / 2;
     
     // 팝업 창 열기
-    window.open(
-      socialLoginUrl, 
-      `${provider}Login`, 
-      `width=${width},height=${height},top=${top},left=${left}`
-    );
+    try {
+      console.log("팝업 열기 시도:", socialLoginUrl);
+      const popup = window.open(
+        socialLoginUrl, 
+        `${provider}Login`, 
+        `width=${width},height=${height},top=${top},left=${left}`
+      );
+      
+      // 팝업 차단 감지
+      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        alert("팝업이 차단되었습니다. 브라우저 설정에서 팝업 차단을 해제해주세요.");
+        console.error("팝업 차단 감지됨");
+      } else {
+        console.log("팝업 열기 성공");
+        
+        // 팝업 창 상태 폴링 (파이어폭스 호환성)
+        const checkPopupClosed = setInterval(() => {
+          if (!popup || popup.closed) {
+            clearInterval(checkPopupClosed);
+            console.log("팝업 닫힘 감지");
+            
+            // 로그인 상태 확인
+            setTimeout(() => {
+              const token = localStorage.getItem('authToken');
+              const user = localStorage.getItem('userName');
+              if (token && user) {
+                console.log("소셜 로그인 후 토큰 감지");
+                onLogin(user);
+                onClose();
+              }
+            }, 1000);
+          }
+        }, 500);
+      }
+    } catch (error) {
+      console.error("팝업 열기 오류:", error);
+      alert("로그인 창을 열 수 없습니다. 브라우저 설정을 확인해주세요.");
+    }
   };
 
   return (
