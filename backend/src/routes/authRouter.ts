@@ -10,8 +10,18 @@ const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key";
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3000";
 
+// JWT_SECRET 길이 확인
+console.log('JWT_SECRET 확인 (authRouter):', JWT_SECRET ? '설정됨' : '설정되지 않음', '길이:', JWT_SECRET?.length || 0);
+
 // 토큰 생성 함수
 export const generateTokens = (user: any) => {
+  console.log('토큰 생성 시작, 사용자 정보:', {
+    userId: user._id,
+    email: user.email,
+    displayName: user.displayName,
+    isAdmin: user.isAdmin
+  });
+
   const accessToken = jwt.sign(
     {
       userId: user._id,
@@ -20,11 +30,16 @@ export const generateTokens = (user: any) => {
       isAdmin: user.isAdmin,
     },
     JWT_SECRET,
-    { expiresIn: "90d" }
+    { expiresIn: "90d" }  // 30일에서 90일로 늘림
   );
 
   const refreshToken = jwt.sign({ userId: user._id }, JWT_SECRET, {
-    expiresIn: "180d",
+    expiresIn: "180d",  // 60일에서 180일로 늘림
+  });
+
+  console.log('토큰 생성 완료:', {
+    accessTokenLength: accessToken.length,
+    refreshTokenLength: refreshToken.length
   });
 
   return { accessToken, refreshToken };
@@ -240,19 +255,19 @@ router.get("/kakao/callback", async (req, res) => {
 
 // 인증 상태 확인
 router.get("/status", optionalAuthenticateJWT, (req, res) => {
-  console.log("인증 상태 요청 처리 중...");
-  console.log("인증 헤더:", req.headers.authorization ? "존재함" : "없음");
-  console.log("req.user:", req.user);
+  const authHeader = req.headers.authorization;
+  console.log('인증 상태 요청, 헤더:', authHeader ? `${authHeader.substring(0, 20)}...` : '없음');
+  console.log('req.jwtUser:', req.jwtUser ? JSON.stringify(req.jwtUser) : '없음');
 
-  if (req.user) {
-    console.log("인증된 사용자 발견, 응답 전송: 인증됨");
+  if (req.jwtUser) {
+    console.log('인증된 사용자:', req.jwtUser.userId || req.jwtUser.id || '알 수 없음');
     return res.json({
       status: "OK",
       authenticated: true,
-      user: req.user,
+      user: req.jwtUser,
     });
   } else {
-    console.log("인증되지 않은 요청, 비인증 응답 전송");
+    console.log('인증되지 않은 요청');
     return res.json({
       authenticated: false,
     });
@@ -262,16 +277,53 @@ router.get("/status", optionalAuthenticateJWT, (req, res) => {
 // 로그인
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
+  console.log('로그인 시도:', email);
 
   try {
     const user = await User.findOne({ email });
-    if (!user || !(await user.comparePassword(password))) {
+    console.log('사용자 찾기 결과:', user ? '사용자 발견' : '사용자 없음');
+    
+    if (!user) {
+      console.log('로그인 실패: 사용자 없음');
+      return res
+        .status(401)
+        .json({ error: "이메일 또는 비밀번호가 올바르지 않습니다." });
+    }
+    
+    const passwordValid = await user.comparePassword(password);
+    console.log('비밀번호 검증 결과:', passwordValid ? '성공' : '실패');
+    
+    if (!passwordValid) {
+      console.log('로그인 실패: 비밀번호 불일치');
       return res
         .status(401)
         .json({ error: "이메일 또는 비밀번호가 올바르지 않습니다." });
     }
 
     const { accessToken, refreshToken } = generateTokens(user);
+    
+    // 최종 응답 로그
+    console.log('로그인 성공! 토큰 전송:', {
+      accessTokenStart: accessToken.substring(0, 10) + '...',
+      refreshTokenStart: refreshToken.substring(0, 10) + '...',
+      userId: user._id
+    });
+    
+    // 토큰을 쿠키에도 설정
+    res.cookie('authToken', accessToken, {
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 90 * 24 * 60 * 60 * 1000, // 90일
+      sameSite: 'lax'
+    });
+    
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 180 * 24 * 60 * 60 * 1000, // 180일
+      sameSite: 'lax'
+    });
+    
     res.json({
       accessToken,
       refreshToken,

@@ -20,6 +20,8 @@ function App() {
     try {
       const token = localStorage.getItem('authToken');
       
+      console.log('인증 상태 확인, 토큰:', token ? '존재함' : '없음');
+      
       if (!token) {
         setUsername(null);
         setUserId(null);
@@ -29,14 +31,17 @@ function App() {
       }
       
       const response = await apiCheckAuthStatus();
+      console.log('인증 상태 응답:', response);
       
       if (response.authenticated && response.user) {
+        console.log('인증 성공:', response.user);
         setUsername(response.user.displayName || response.user.email || '사용자');
-        setUserId(response.user._id || null);
+        setUserId(response.user._id || response.user.userId || null);
         setIsAdmin(response.user.isAdmin || false);
         setSessionExpired(false);
         setHasShownExpiredAlert(false);
       } else {
+        console.log('인증 실패, response:', response);
         if (username && !hasShownExpiredAlert) {
           setSessionExpired(true);
         }

@@ -23,15 +23,26 @@ export interface Contact {
 // ===== 인증 관련 API =====
 // 로그인 요청
 export const userLogin = async (email: string, password: string) => {
-  const response = await api.post('/api/auth/login', { email, password });
+  console.log('로그인 요청 시작:', email);
   
-  // 토큰 저장
-  if (response.data.accessToken) {
-    localStorage.setItem('authToken', response.data.accessToken);
-    localStorage.setItem('refreshToken', response.data.refreshToken || '');
+  try {
+    const response = await api.post('/api/auth/login', { email, password });
+    console.log('로그인 응답 받음:', response.status);
+    
+    // 토큰 저장
+    if (response.data.accessToken) {
+      localStorage.setItem('authToken', response.data.accessToken);
+      localStorage.setItem('refreshToken', response.data.refreshToken || '');
+      console.log('토큰 저장 완료');
+    } else {
+      console.error('토큰이 응답에 없음:', response.data);
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error('로그인 요청 실패:', error);
+    throw error;
   }
-  
-  return response.data;
 };
 
 // 로그아웃
