@@ -33,9 +33,13 @@ app.use((req, res, next) => {
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.header("Access-Control-Allow-Credentials", "true");
   
-  // COOP 및 COEP 헤더 설정
+  // COOP 헤더 설정
   res.header("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
   // res.header("Cross-Origin-Embedder-Policy", "require-corp"); // 주석 처리
+  
+  // 추가 보안 헤더
+  res.header("X-Content-Type-Options", "nosniff");
+  res.header("X-Frame-Options", "SAMEORIGIN");
 
   if (req.method === "OPTIONS") {
     return res.sendStatus(200);

@@ -312,16 +312,16 @@ router.post("/login", async (req, res) => {
     // 토큰을 쿠키에도 설정
     res.cookie('authToken', accessToken, {
       httpOnly: true, 
-      secure: process.env.NODE_ENV === 'production',
+      secure: true, // HTTPS 필수
       maxAge: 90 * 24 * 60 * 60 * 1000, // 90일
-      sameSite: 'lax'
+      sameSite: 'none'
     });
     
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true, 
-      secure: process.env.NODE_ENV === 'production',
+      secure: true, // HTTPS 필수
       maxAge: 180 * 24 * 60 * 60 * 1000, // 180일
-      sameSite: 'lax'
+      sameSite: 'none'
     });
     
     res.json({
