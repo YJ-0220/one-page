@@ -18,16 +18,12 @@ const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 
 // CORS 미들웨어 설정 (간소화)
 app.use((req, res, next) => {
-  // 여러 도메인 허용
-  const allowedOrigins = [
-    "http://localhost:5173", // 프론트엔드 개발 서버
-    "http://localhost:3000", // 백엔드 서버 자신
-    CLIENT_URL,
-  ];
-
+  // 모든 출처 허용
   const origin = req.headers.origin;
-  if (origin && allowedOrigins.includes(origin)) {
+  if (origin) {
     res.header("Access-Control-Allow-Origin", origin);
+  } else {
+    res.header("Access-Control-Allow-Origin", "*");
   }
 
   res.header(
@@ -36,6 +32,10 @@ app.use((req, res, next) => {
   );
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.header("Access-Control-Allow-Credentials", "true");
+  
+  // COOP 및 COEP 헤더 설정
+  res.header("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+  // res.header("Cross-Origin-Embedder-Policy", "require-corp"); // 주석 처리
 
   if (req.method === "OPTIONS") {
     return res.sendStatus(200);
@@ -58,7 +58,7 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
+      secure: false, // 개발 환경에서는 false, 프로덕션에서는 true로 설정
       maxAge: 24 * 60 * 60 * 1000, // 24시간
     },
   })

@@ -48,7 +48,7 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
     const width = 500, height = 600;
     const left = window.screenX + (window.outerWidth - width) / 2;
     const top = window.screenY + (window.outerHeight - height) / 2;
-    const popupOptions = `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`;
+    const popupOptions = `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,noopener,noreferrer`;
 
     // 소셜 로그인 URL
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
@@ -56,14 +56,22 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
 
     // 메시지 리스너 설정
     const messageListener = (event: MessageEvent) => {
-      // 유효한 출처 확인
-      if (!event.origin.includes('localhost') && 
-          !event.origin.includes('yj-0220.github.io') && 
-          !event.origin.includes('onrender.com')) {
+      // 유효한 출처 확인 - 더 유연하게 설정
+      const allowedOrigins = [
+        BACKEND_URL,
+        'localhost',
+        'yj-0220.github.io',
+        'onrender.com'
+      ];
+      
+      if (!allowedOrigins.some(origin => event.origin.includes(origin))) {
+        console.log('출처 불일치:', event.origin);
         return;
       }
       
       const data = event.data;
+      console.log('소셜 로그인 메시지 수신:', data);
+      
       if (data?.type === 'login_success' && data.token) {
         // 토큰 저장 및 로그인 처리
         localStorage.setItem('authToken', data.token);
@@ -80,13 +88,25 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
     window.addEventListener('message', messageListener);
 
     // 팝업 창 열기
-    const popup = window.open(url, `${provider}Login`, popupOptions);
+    let popup;
+    try {
+      popup = window.open(url, `${provider}Login`, popupOptions);
+    } catch (error) {
+      console.error('팝업 창 열기 실패:', error);
+      alert('팝업 창을 열 수 없습니다. 브라우저 설정에서 팝업을 허용해주세요.');
+      return;
+    }
 
-    // 팝업 창 닫힘 확인
+    // 팝업 창 닫힘 확인 - try/catch로 window.closed 접근 오류 처리
     const checkPopup = setInterval(() => {
-      if (!popup || popup.closed) {
-        clearInterval(checkPopup);
-        window.removeEventListener('message', messageListener);
+      try {
+        if (!popup || popup.closed) {
+          clearInterval(checkPopup);
+          window.removeEventListener('message', messageListener);
+        }
+      } catch (error) {
+        console.log('팝업 상태 확인 실패 - 정상적인 현상일 수 있음');
+        // Cross-Origin 정책으로 인해 접근 불가능할 수 있으므로 무시
       }
     }, 1000);
   };

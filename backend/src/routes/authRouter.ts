@@ -63,22 +63,33 @@ router.get(
       ? user.displayName || user.email || "구글사용자"
       : "구글사용자";
 
+    // COOP 헤더 설정
+    res.header("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+
     res.send(`
       <script>
-        if (window.opener) {
-          window.opener.postMessage({
-            type: 'login_success',
-            provider: 'google',
-            token: "${accessToken}",
-            refreshToken: "${refreshToken}",
-            user: "${userName}"
-          }, "${CLIENT_URL}");
+        try {
+          if (window.opener && window.opener.postMessage) {
+            window.opener.postMessage({
+              type: 'login_success',
+              provider: 'google',
+              token: "${accessToken}",
+              refreshToken: "${refreshToken}",
+              user: "${userName}"
+            }, "*"); // 모든 출처 허용 (보안을 위해 나중에 정확한 출처로 변경 가능)
+            console.log("메시지 전송 완료");
+          } else {
+            console.error("window.opener를 찾을 수 없음");
+          }
+        } catch (e) {
+          console.error("postMessage 오류:", e);
         }
         setTimeout(() => window.close(), 1000);
       </script>
       <div style="text-align: center; font-family: sans-serif; margin-top: 50px;">
         <h3>로그인 완료!</h3>
         <p>이 창은 자동으로 닫힙니다...</p>
+        <p>(창이 자동으로 닫히지 않으면 직접 닫아주세요.)</p>
       </div>
     `);
   }
@@ -95,22 +106,33 @@ router.get(
     const { accessToken, refreshToken } = generateTokens(user);
     const userName = user ? user.displayName || "라인사용자" : "라인사용자";
 
+    // COOP 헤더 설정
+    res.header("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+
     res.send(`
       <script>
-        if (window.opener) {
-          window.opener.postMessage({
-            type: 'login_success',
-            provider: 'line',
-            token: "${accessToken}",
-            refreshToken: "${refreshToken}",
-            user: "${userName}"
-          }, "${CLIENT_URL}");
+        try {
+          if (window.opener && window.opener.postMessage) {
+            window.opener.postMessage({
+              type: 'login_success',
+              provider: 'line',
+              token: "${accessToken}",
+              refreshToken: "${refreshToken}",
+              user: "${userName}"
+            }, "*"); // 모든 출처 허용
+            console.log("메시지 전송 완료");
+          } else {
+            console.error("window.opener를 찾을 수 없음");
+          }
+        } catch (e) {
+          console.error("postMessage 오류:", e);
         }
         setTimeout(() => window.close(), 1000);
       </script>
       <div style="text-align: center; font-family: sans-serif; margin-top: 50px;">
         <h3>로그인 완료!</h3>
         <p>이 창은 자동으로 닫힙니다...</p>
+        <p>(창이 자동으로 닫히지 않으면 직접 닫아주세요.)</p>
       </div>
     `);
   }
@@ -181,22 +203,33 @@ router.get("/kakao/callback", async (req, res) => {
     const { accessToken, refreshToken } = generateTokens(user);
     const userName = user.displayName || "카카오사용자";
 
+    // COOP 헤더 설정
+    res.header("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+
     res.send(`
       <script>
-        if (window.opener) {
-          window.opener.postMessage({
-            type: 'login_success',
-            provider: 'kakao',
-            token: "${accessToken}",
-            refreshToken: "${refreshToken}",
-            user: "${userName}"
-          }, "${CLIENT_URL}");
+        try {
+          if (window.opener && window.opener.postMessage) {
+            window.opener.postMessage({
+              type: 'login_success',
+              provider: 'kakao',
+              token: "${accessToken}",
+              refreshToken: "${refreshToken}",
+              user: "${userName}"
+            }, "*"); // 모든 출처 허용
+            console.log("메시지 전송 완료");
+          } else {
+            console.error("window.opener를 찾을 수 없음");
+          }
+        } catch (e) {
+          console.error("postMessage 오류:", e);
         }
         setTimeout(() => window.close(), 1000);
       </script>
       <div style="text-align: center; font-family: sans-serif; margin-top: 50px;">
         <h3>로그인 완료!</h3>
         <p>이 창은 자동으로 닫힙니다...</p>
+        <p>(창이 자동으로 닫히지 않으면 직접 닫아주세요.)</p>
       </div>
     `);
   } catch (error) {

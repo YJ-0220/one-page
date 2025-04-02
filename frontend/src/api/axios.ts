@@ -39,6 +39,7 @@ api.interceptors.request.use(
     const token = localStorage.getItem('authToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('토큰 요청 헤더에 추가:', token.substring(0, 15) + '...');
     }
     return config;
   },
@@ -51,18 +52,21 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   response => response,
   async error => {
+    console.log('API 오류 발생:', error.response?.status, error.response?.data);
     const originalRequest = error.config;
     
     // 토큰 만료로 401 에러가 발생하고, 재시도하지 않았던 요청인 경우
     if (error.response?.status === 401 && 
         error.response?.data?.code === 'TOKEN_EXPIRED' && 
         !originalRequest._retry) {
+      console.log('토큰 만료 감지, 갱신 시도');
       
       originalRequest._retry = true;
       
       try {
         // 토큰 갱신 시도
         const newToken = await refreshTokenFn();
+        console.log('토큰 갱신 성공:', newToken.substring(0, 15) + '...');
         
         // 헤더 업데이트
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
@@ -70,6 +74,7 @@ api.interceptors.response.use(
         // 원래 요청 재시도
         return api(originalRequest);
       } catch (refreshError) {
+        console.error('토큰 갱신 실패:', refreshError);
         // 리프레시 토큰도 만료되었거나 오류가 발생한 경우
         if (!window.location.pathname.includes('/login')) {
           alert('로그인이 만료되었습니다. 다시 로그인해주세요.');
