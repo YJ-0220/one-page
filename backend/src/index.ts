@@ -16,34 +16,51 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 
-// CORS 미들웨어 설정 (간소화)
+// CORS 미들웨어 설정 (크로스 도메인용으로 강화)
 app.use((req, res, next) => {
-  // 모든 출처 허용
-  const origin = req.headers.origin;
-  if (origin) {
+  // 프론트엔드 도메인 명시적으로 설정
+  const allowedOrigins = [
+    "http://localhost:5173",
+    "https://yj-0220.github.io", // GitHub Pages 도메인
+    CLIENT_URL
+  ];
+  
+  const origin = req.headers.origin as string;
+  if (origin && allowedOrigins.includes(origin)) {
     res.header("Access-Control-Allow-Origin", origin);
-  } else {
-    res.header("Access-Control-Allow-Origin", "*");
+    console.log(`CORS 허용: ${origin}`);
   }
 
+  // 크로스 도메인 쿠키 허용
+  res.header("Access-Control-Allow-Credentials", "true");
+  
+  // 허용 메서드
   res.header(
     "Access-Control-Allow-Methods",
     "GET, POST, PUT, DELETE, OPTIONS, PATCH"
   );
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.header("Access-Control-Allow-Credentials", "true");
+  
+  // 허용 헤더
+  res.header(
+    "Access-Control-Allow-Headers", 
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+  );
+  
+  // 프리플라이트 요청 캐시 시간
+  res.header("Access-Control-Max-Age", "86400");
   
   // COOP 헤더 설정
   res.header("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
-  // res.header("Cross-Origin-Embedder-Policy", "require-corp"); // 주석 처리
   
   // 추가 보안 헤더
   res.header("X-Content-Type-Options", "nosniff");
   res.header("X-Frame-Options", "SAMEORIGIN");
 
+  // OPTIONS 요청 처리
   if (req.method === "OPTIONS") {
     return res.sendStatus(200);
   }
+  
   next();
 });
 

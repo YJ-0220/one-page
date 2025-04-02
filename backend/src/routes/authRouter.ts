@@ -309,21 +309,7 @@ router.post("/login", async (req, res) => {
       userId: user._id
     });
     
-    // 토큰을 쿠키에도 설정
-    res.cookie('authToken', accessToken, {
-      httpOnly: true, 
-      secure: true, // HTTPS 필수
-      maxAge: 90 * 24 * 60 * 60 * 1000, // 90일
-      sameSite: 'none'
-    });
-    
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true, 
-      secure: true, // HTTPS 필수
-      maxAge: 180 * 24 * 60 * 60 * 1000, // 180일
-      sameSite: 'none'
-    });
-    
+    // 토큰을 응답 본문으로만 전송 (쿠키 사용 안함)
     res.json({
       accessToken,
       refreshToken,
