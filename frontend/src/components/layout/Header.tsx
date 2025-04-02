@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import LoginForm from "@/components/LoginForm";
 import EditProfileForm from "@/components/EditProfileForm";
+import LogoIcon from "@/assets/faviconImg.png"
 
 interface HeaderProps {
   activePage: string;
@@ -45,8 +46,8 @@ const Header = ({ activePage, setActivePage, username, userId, isAdmin, onLogin,
               }
             }}
           >
-            <h1 className="text-3xl font-bold text-gray-900">
-              <img src="#" alt="로고" />
+            <h1 className="w-10 h-10 text-3xl font-bold text-gray-900">
+              <img src={LogoIcon} alt="로고" />
             </h1>
           </div>
           <div className="flex-grow flex justify-center">

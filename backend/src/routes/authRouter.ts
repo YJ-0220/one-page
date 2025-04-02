@@ -20,11 +20,11 @@ export const generateTokens = (user: any) => {
       isAdmin: user.isAdmin,
     },
     JWT_SECRET,
-    { expiresIn: "30d" }
+    { expiresIn: "90d" }
   );
 
   const refreshToken = jwt.sign({ userId: user._id }, JWT_SECRET, {
-    expiresIn: "60d",
+    expiresIn: "180d",
   });
 
   return { accessToken, refreshToken };

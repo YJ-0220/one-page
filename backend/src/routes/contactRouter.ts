@@ -62,4 +62,23 @@ router.patch('/mark-read/:id', authenticateJWT, isAdmin, async (req, res) => {
   }
 });
 
+// 관리자용 문의 삭제 API
+router.delete('/delete/:id', authenticateJWT, isAdmin, async (req, res) => {
+  try {
+    const contact = await Contact.findByIdAndDelete(req.params.id);
+
+    if (!contact) {
+      return res.status(404).json({ error: "문의를 찾을 수 없습니다." });
+    }
+
+    res.json({ 
+      message: "문의가 성공적으로 삭제되었습니다.",
+      deletedId: contact._id 
+    });
+  } catch (err) {
+    console.error("문의 삭제 오류:", err);
+    res.status(500).json({ error: "서버 오류가 발생했습니다." });
+  }
+});
+
 export default router; 

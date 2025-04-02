@@ -2,7 +2,8 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import session from "express-session";
-import connectDB from "./db";
+import MongoStore from "connect-mongo";
+import connectDB from "./db/db";
 import { configurePassport } from "./config/passport";
 import authRoutes from "./routes/authRouter";
 import contactRoutes from "./routes/contactRouter";
@@ -19,20 +20,23 @@ const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 app.use((req, res, next) => {
   // 여러 도메인 허용
   const allowedOrigins = [
-    "http://localhost:5173",  // 프론트엔드 개발 서버
-    "http://localhost:3000",  // 백엔드 서버 자신
-    CLIENT_URL
+    "http://localhost:5173", // 프론트엔드 개발 서버
+    "http://localhost:3000", // 백엔드 서버 자신
+    CLIENT_URL,
   ];
-  
+
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
     res.header("Access-Control-Allow-Origin", origin);
   }
-  
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
+
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+  );
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.header("Access-Control-Allow-Credentials", "true");
-  
+
   if (req.method === "OPTIONS") {
     return res.sendStatus(200);
   }
@@ -46,12 +50,16 @@ app.use(cookieParser());
 // 세션 설정 - OAuth 인증 과정에 필요
 app.use(
   session({
+    store: MongoStore.create({ 
+      mongoUrl: process.env.MONGODB_URI,
+      ttl: 24 * 60 * 60, // 24시간 (초 단위)
+    }),
     secret: process.env.SESSION_SECRET || "your_session_secret",
     resave: false,
     saveUninitialized: false,
     cookie: {
       secure: process.env.NODE_ENV === "production",
-      maxAge: 60000,
+      maxAge: 24 * 60 * 60 * 1000, // 24시간
     },
   })
 );

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { getContactsList, markContactAsRead, Contact } from '../api';
+import { getContactsList, markContactAsRead, deleteContact, Contact } from '../api';
 
 const ContactManagement = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   useEffect(() => {
     fetchContacts();
@@ -44,13 +45,36 @@ const ContactManagement = () => {
     }
   };
 
+  const handleDeleteContact = async (contactId: string) => {
+    if (!window.confirm('정말 이 문의를 삭제하시겠습니까?')) {
+      return;
+    }
+    
+    setIsDeleting(true);
+    
+    try {
+      await deleteContact(contactId);
+      
+      // 문의 목록에서 삭제
+      setContacts(contacts.filter(contact => contact._id !== contactId));
+      
+      // 선택된 문의가 삭제된 경우 선택 해제
+      if (selectedContact && selectedContact._id === contactId) {
+        setSelectedContact(null);
+      }
+      
+      alert('문의가 삭제되었습니다.');
+    } catch (err) {
+      console.error('문의 삭제 오류:', err);
+      alert('문의를 삭제하는 중 오류가 발생했습니다.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const showContactDetail = (contact: Contact) => {
     setSelectedContact(contact);
-    
-    // 읽지 않은 문의인 경우 자동으로 읽음 처리
-    if (!contact.isRead) {
-      handleMarkAsRead(contact._id);
-    }
+    // 자동 읽음 처리 제거
   };
 
   if (loading) {
@@ -97,10 +121,10 @@ const ContactManagement = () => {
                     key={contact._id} 
                     className={`${!contact.isRead ? 'bg-blue-50' : ''} 
                                ${selectedContact?._id === contact._id ? 'bg-gray-100' : ''}
-                               hover:bg-gray-50 cursor-pointer`}
+                               hover:bg-gray-50 cursor-pointer group`}
                     onClick={() => showContactDetail(contact)}
                   >
-                    <div className="p-4">
+                    <div className="p-4 relative">
                       <div className="flex justify-between items-start mb-1">
                         <div className="font-medium flex items-center">
                           {contact.name}
@@ -108,8 +132,22 @@ const ContactManagement = () => {
                             <span className="ml-2 w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
                           )}
                         </div>
-                        <div className="text-sm text-gray-500">
-                          {new Date(contact.createdAt).toLocaleDateString()}
+                        <div className="flex items-center space-x-2">
+                          {!contact.isRead && (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation(); // 이벤트 버블링 방지
+                                handleMarkAsRead(contact._id);
+                              }}
+                              className="px-2 py-0.5 bg-green-500 text-white text-xs rounded hover:bg-green-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="읽음으로 표시"
+                            >
+                              읽음
+                            </button>
+                          )}
+                          <div className="text-sm text-gray-500">
+                            {new Date(contact.createdAt).toLocaleDateString()}
+                          </div>
                         </div>
                       </div>
                       <div className="text-sm text-gray-600">{contact.email}</div>
@@ -145,6 +183,14 @@ const ContactManagement = () => {
                       읽음 표시
                     </button>
                   )}
+                  
+                  <button 
+                    onClick={() => handleDeleteContact(selectedContact._id)}
+                    disabled={isDeleting}
+                    className="ml-2 px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 disabled:bg-red-300"
+                  >
+                    {isDeleting ? '삭제 중...' : '삭제'}
+                  </button>
                 </div>
               </div>
               

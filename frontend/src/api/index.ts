@@ -83,4 +83,10 @@ export const getContactsList = async () => {
 export const markContactAsRead = async (contactId: string) => {
   const response = await api.patch(`/api/contact/mark-read/${contactId}`);
   return response.data;
+};
+
+// 문의 삭제 (관리자 전용)
+export const deleteContact = async (contactId: string) => {
+  const response = await api.delete(`/api/contact/delete/${contactId}`);
+  return response.data;
 }; 
