@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
-import { userLogin } from "../api";
+import { userLogin, BASE_URL } from "../api";
 
 interface LoginFormProps {
   onLogin: (username: string) => void;
@@ -13,6 +13,7 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // 이메일/비밀번호 로그인
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -24,91 +25,86 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
 
     try {
       setLoading(true);
-
-      // API 함수 사용하여 로그인
       const response = await userLogin(email, password);
       
-      // 로그인 상태 업데이트
-      onLogin(response.user.displayName || response.user.email);
+      // 로그인 성공 처리 개선
+      console.log("이메일 로그인 성공:", response);
+      
+      // 로그인 처리 전 1초 지연 (토큰 저장 시간 확보)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // 직접 토큰 확인
+      const token = localStorage.getItem('authToken');
+      console.log("로그인 폼에서 토큰 확인:", token ? '있음' : '없음');
+      
+      // 토큰이 없는 경우 전역 변수나 쿠키에서 복구 시도
+      if (!token) {
+        console.warn("localStorage에 토큰이 없어 복구 시도");
+        
+        // 전역 변수에서 복구
+        const globalToken = (window as any)._userToken;
+        if (globalToken) {
+          localStorage.setItem('authToken', globalToken);
+          console.log("전역 변수에서 토큰 복구됨");
+        } else {
+          // 쿠키에서 찾기
+          const cookies = document.cookie.split(';');
+          const tokenCookie = cookies.find(c => c.trim().startsWith('authToken='));
+          if (tokenCookie) {
+            const tokenValue = tokenCookie.split('=')[1];
+            localStorage.setItem('authToken', tokenValue);
+            console.log("쿠키에서 토큰 복구됨");
+          } else {
+            console.error("모든 저장소에서 토큰을 찾을 수 없음!");
+          }
+        }
+      }
+      
+      // 사용자 이름 확인
+      const userName = response.user?.displayName || response.user?.email || email;
+      console.log("로그인 사용자:", userName);
+      
+      // 강제로 헤더 설정
+      if (token) {
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      }
+      
+      // 상위 컴포넌트에 알림
+      onLogin(userName);
+      
+      // 로그인 모달 닫기
       onClose();
     } catch (err: unknown) {
-      // 오류 처리
       if (axios.isAxiosError(err) && err.response?.data?.error) {
         setError(err.response.data.error);
       } else {
         setError("로그인 중 오류가 발생했습니다.");
+        console.error("로그인 오류 상세:", err);
       }
     } finally {
       setLoading(false);
     }
   };
 
+  // 소셜 로그인 함수
   const handleSocialLogin = (provider: string) => {
-    // 팝업 창 설정
-    const width = 500, height = 600;
-    const left = window.screenX + (window.outerWidth - width) / 2;
-    const top = window.screenY + (window.outerHeight - height) / 2;
-    const popupOptions = `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,noopener,noreferrer`;
-
-    // 소셜 로그인 URL
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
-    const url = `${BACKEND_URL}/api/auth/${provider}`;
-
-    // 메시지 리스너 설정
-    const messageListener = (event: MessageEvent) => {
-      // 유효한 출처 확인 - 더 유연하게 설정
-      const allowedOrigins = [
-        BACKEND_URL,
-        'localhost',
-        'yj-0220.github.io',
-        'onrender.com'
-      ];
-      
-      if (!allowedOrigins.some(origin => event.origin.includes(origin))) {
-        console.log('출처 불일치:', event.origin);
-        return;
-      }
-      
-      const data = event.data;
-      console.log('소셜 로그인 메시지 수신:', data);
-      
-      if (data?.type === 'login_success' && data.token) {
-        // 토큰 저장 및 로그인 처리
-        localStorage.setItem('authToken', data.token);
-        if (data.refreshToken) {
-          localStorage.setItem('refreshToken', data.refreshToken);
-        }
-        
-        onLogin(data.user);
-        onClose();
-        window.removeEventListener('message', messageListener);
-      }
-    };
+    // 소셜 로그인은 API가 아닌 BASE_URL 사용 (백엔드 경로에 맞춤)
+    const socialLoginUrl = `${BASE_URL}/api/auth/${provider}`;
     
-    window.addEventListener('message', messageListener);
-
+    console.log(`${provider} 로그인 시도:`, socialLoginUrl);
+    
+    // 팝업 창 중앙에 위치하도록 설정
+    const width = 600;
+    const height = 700;
+    const left = window.innerWidth / 2 - width / 2;
+    const top = window.innerHeight / 2 - height / 2;
+    
     // 팝업 창 열기
-    let popup;
-    try {
-      popup = window.open(url, `${provider}Login`, popupOptions);
-    } catch (error) {
-      console.error('팝업 창 열기 실패:', error);
-      alert('팝업 창을 열 수 없습니다. 브라우저 설정에서 팝업을 허용해주세요.');
-      return;
-    }
-
-    // 팝업 창 닫힘 확인 - try/catch로 window.closed 접근 오류 처리
-    const checkPopup = setInterval(() => {
-      try {
-        if (!popup || popup.closed) {
-          clearInterval(checkPopup);
-          window.removeEventListener('message', messageListener);
-        }
-      } catch (error) {
-        console.log('팝업 상태 확인 실패 - 정상적인 현상일 수 있음');
-        // Cross-Origin 정책으로 인해 접근 불가능할 수 있으므로 무시
-      }
-    }, 1000);
+    window.open(
+      socialLoginUrl, 
+      `${provider}Login`, 
+      `width=${width},height=${height},top=${top},left=${left}`
+    );
   };
 
   return (
@@ -192,25 +188,11 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
             onClick={() => handleSocialLogin("google")}
             className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
           >
-            <svg
-              className="w-5 h-5"
-              aria-hidden="true"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="w-5 h-5" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
               {/* Google G 아이콘 */}
-              <path
-                d="M12.2461 12C12.2461 11.4477 12.6939 11 13.2461 11H20.9998C21.5521 11 21.9998 11.4477 21.9998 12C21.9998 12.5523 21.5521 13 20.9998 13H13.2461C12.6939 13 12.2461 12.5523 12.2461 12Z"
-                fill="#5F6368"
-              />
-              <path
-                d="M13.2461 18C12.6939 18 12.2461 17.5523 12.2461 17C12.2461 16.4477 12.6939 16 13.2461 16H20.9998C21.5521 16 21.9998 16.4477 21.9998 17C21.9998 17.5523 21.5521 18 20.9998 18H13.2461Z"
-                fill="#5F6368"
-              />
-              <path
-                d="M5.49976 18C3.01449 18 0.999756 15.9853 0.999756 13.5C0.999756 11.0147 3.01449 9 5.49976 9C7.52237 9 9.22625 10.3146 9.84878 12.1542C9.89088 12.2721 9.91226 12.3979 9.91226 12.5244V13.5H11.9998C12.552 13.5 12.9998 13.9477 12.9998 14.5C12.9998 15.0523 12.552 15.5 11.9998 15.5H5.49976C4.94747 15.5 4.49976 15.0523 4.49976 14.5C4.49976 13.9477 4.94747 13.5 5.49976 13.5H7.91024C7.6838 12.6093 6.967 11.9044 6.07333 11.6399C5.75634 11.5476 5.49976 11.2679 5.49976 10.9375C5.49976 10.6071 5.75634 10.3274 6.07333 10.2351C7.33308 9.83811 8.27724 8.72618 8.45618 7.36203C8.49878 7.08708 8.73437 6.87616 9.01203 6.86431C9.28969 6.85247 9.5408 7.04187 9.60389 7.3148C9.8597 8.4033 10.5491 9.33727 11.5053 9.90592C11.7547 10.0602 11.8773 10.3678 11.8053 10.6629C11.7332 10.958 11.4836 11.1751 11.1801 11.2061C10.0586 11.3183 9.06997 11.8598 8.41226 12.6638C8.59271 13.3333 9.19878 13.8469 9.91226 13.9611V12.5244C9.91226 12.3979 9.89088 12.2721 9.84878 12.1542C9.22625 10.3146 7.52237 9 5.49976 9Z"
-                fill="#5F6368"
-              />
+              <path d="M12.2461 12C12.2461 11.4477 12.6939 11 13.2461 11H20.9998C21.5521 11 21.9998 11.4477 21.9998 12C21.9998 12.5523 21.5521 13 20.9998 13H13.2461C12.6939 13 12.2461 12.5523 12.2461 12Z" fill="#5F6368" />
+              <path d="M13.2461 18C12.6939 18 12.2461 17.5523 12.2461 17C12.2461 16.4477 12.6939 16 13.2461 16H20.9998C21.5521 16 21.9998 16.4477 21.9998 17C21.9998 17.5523 21.5521 18 20.9998 18H13.2461Z" fill="#5F6368" />
+              <path d="M5.49976 18C3.01449 18 0.999756 15.9853 0.999756 13.5C0.999756 11.0147 3.01449 9 5.49976 9C7.52237 9 9.22625 10.3146 9.84878 12.1542C9.89088 12.2721 9.91226 12.3979 9.91226 12.5244V13.5H11.9998C12.552 13.5 12.9998 13.9477 12.9998 14.5C12.9998 15.0523 12.552 15.5 11.9998 15.5H5.49976C4.94747 15.5 4.49976 15.0523 4.49976 14.5C4.49976 13.9477 4.94747 13.5 5.49976 13.5H7.91024C7.6838 12.6093 6.967 11.9044 6.07333 11.6399C5.75634 11.5476 5.49976 11.2679 5.49976 10.9375C5.49976 10.6071 5.75634 10.3274 6.07333 10.2351C7.33308 9.83811 8.27724 8.72618 8.45618 7.36203C8.49878 7.08708 8.73437 6.87616 9.01203 6.86431C9.28969 6.85247 9.5408 7.04187 9.60389 7.3148C9.8597 8.4033 10.5491 9.33727 11.5053 9.90592C11.7547 10.0602 11.8773 10.3678 11.8053 10.6629C11.7332 10.958 11.4836 11.1751 11.1801 11.2061C10.0586 11.3183 9.06997 11.8598 8.41226 12.6638C8.59271 13.3333 9.19878 13.8469 9.91226 13.9611V12.5244C9.91226 12.3979 9.89088 12.2721 9.84878 12.1542C9.22625 10.3146 7.52237 9 5.49976 9Z" fill="#5F6368" />
             </svg>
             <span className="ml-2">Google</span>
           </button>
@@ -221,12 +203,7 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
           >
             <svg className="w-5 h-5" aria-hidden="true" viewBox="0 0 24 24">
               {/* Kakao 아이콘 */}
-              <path
-                fillRule="evenodd"
-                clipRule="evenodd"
-                d="M12 4C7.58172 4 4 6.95219 4 10.5C4 12.7105 5.41515 14.6668 7.5 15.7842V19.5C7.5 19.6881 7.59272 19.8613 7.74545 19.9472C7.89818 20.033 8.08727 20.0223 8.23178 19.9202L12.4318 17.2592C12.6208 17.2863 12.8135 17.3 13.0098 17.3C17.428 17.3 21.0098 14.3478 21.0098 10.8C21.0098 7.25219 17.4183 4.3 13 4.3C12.9999 4.3 12.9999 4 12 4Z"
-                fill="#3A1D1D"
-              />
+              <path fillRule="evenodd" clipRule="evenodd" d="M12 4C7.58172 4 4 6.95219 4 10.5C4 12.7105 5.41515 14.6668 7.5 15.7842V19.5C7.5 19.6881 7.59272 19.8613 7.74545 19.9472C7.89818 20.033 8.08727 20.0223 8.23178 19.9202L12.4318 17.2592C12.6208 17.2863 12.8135 17.3 13.0098 17.3C17.428 17.3 21.0098 14.3478 21.0098 10.8C21.0098 7.25219 17.4183 4.3 13 4.3C12.9999 4.3 12.9999 4 12 4Z" fill="#3A1D1D" />
             </svg>
             <span className="ml-2">Kakao</span>
           </button>
@@ -235,17 +212,9 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
             onClick={() => handleSocialLogin("line")}
             className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
           >
-            <svg
-              className="w-5 h-5"
-              aria-hidden="true"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="w-5 h-5" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
               {/* LINE 아이콘 */}
-              <path
-                d="M22 10.6c0-4.1-4.1-7.4-9.2-7.4s-9.2 3.3-9.2 7.4c0 3.7 3.2 6.7 7.6 7.3.3.1.7.2.8.5.1.3 0 .7-.1 1 0 0-.2.8 0 1 .1.2.7-.4.7-.4l2.9-1.7c.5-.3 1.1-.5 1.6-.5 2.9 0 6.9-2.3 6.9-7.2z"
-                fill="#06C755"
-              />
+              <path d="M22 10.6c0-4.1-4.1-7.4-9.2-7.4s-9.2 3.3-9.2 7.4c0 3.7 3.2 6.7 7.6 7.3.3.1.7.2.8.5.1.3 0 .7-.1 1 0 0-.2.8 0 1 .1.2.7-.4.7-.4l2.9-1.7c.5-.3 1.1-.5 1.6-.5 2.9 0 6.9-2.3 6.9-7.2z" fill="#06C755" />
             </svg>
             <span className="ml-2">LINE</span>
           </button>

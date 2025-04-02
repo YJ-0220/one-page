@@ -28,7 +28,6 @@ app.use((req, res, next) => {
   const origin = req.headers.origin as string;
   if (origin && allowedOrigins.includes(origin)) {
     res.header("Access-Control-Allow-Origin", origin);
-    console.log(`CORS 허용: ${origin}`);
   }
 
   // 크로스 도메인 쿠키 허용

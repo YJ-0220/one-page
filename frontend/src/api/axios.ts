@@ -2,11 +2,16 @@ import axios from "axios";
 
 // 기본 URL 설정
 const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+console.log("API URL 설정됨:", API_URL);
 
 // axios 인스턴스 생성
 const api = axios.create({
   baseURL: API_URL,
-  withCredentials: true,
+  withCredentials: false, // 쿠키 사용하지 않으므로 false로 변경
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  }
 });
 
 // 토큰 갱신 함수
@@ -33,17 +38,27 @@ const refreshTokenFn = async () => {
   }
 };
 
-// 요청 인터셉터 추가 - 모든 요청에 토큰 추가
+// 요청 인터셉터 - 토큰 추가
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('authToken');
+    
+    // 디버깅용 로그 추가
+    if (config.url && config.url.includes('/api/auth/status')) {
+      console.log(`API 요청 토큰 상태: ${token ? '있음' : '없음'}`);
+      if (token) {
+        console.log(`사용중인 토큰: ${token.substring(0, 10)}...`);
+      }
+    }
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('토큰 요청 헤더에 추가:', token.substring(0, 15) + '...');
     }
+    
     return config;
   },
   (error) => {
+    console.error("API 요청 인터셉터 오류:", error);
     return Promise.reject(error);
   }
 );
@@ -52,21 +67,18 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   response => response,
   async error => {
-    console.log('API 오류 발생:', error.response?.status, error.response?.data);
     const originalRequest = error.config;
     
     // 토큰 만료로 401 에러가 발생하고, 재시도하지 않았던 요청인 경우
     if (error.response?.status === 401 && 
         error.response?.data?.code === 'TOKEN_EXPIRED' && 
         !originalRequest._retry) {
-      console.log('토큰 만료 감지, 갱신 시도');
       
       originalRequest._retry = true;
       
       try {
         // 토큰 갱신 시도
         const newToken = await refreshTokenFn();
-        console.log('토큰 갱신 성공:', newToken.substring(0, 15) + '...');
         
         // 헤더 업데이트
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
@@ -74,7 +86,6 @@ api.interceptors.response.use(
         // 원래 요청 재시도
         return api(originalRequest);
       } catch (refreshError) {
-        console.error('토큰 갱신 실패:', refreshError);
         // 리프레시 토큰도 만료되었거나 오류가 발생한 경우
         if (!window.location.pathname.includes('/login')) {
           alert('로그인이 만료되었습니다. 다시 로그인해주세요.');

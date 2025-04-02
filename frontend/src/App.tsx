@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import Home from "@/pages/Home";
@@ -20,35 +20,16 @@ function App() {
     try {
       const token = localStorage.getItem('authToken');
       
-      console.log('인증 상태 확인, 토큰:', token ? '존재함' : '없음');
-      
       if (!token) {
         setUsername(null);
         setUserId(null);
         setIsAdmin(false);
         setLoading(false);
-        return;
+        return { authenticated: false };
       }
       
       const response = await apiCheckAuthStatus();
-      console.log('인증 상태 응답:', response);
-      
-      if (response.authenticated && response.user) {
-        console.log('인증 성공:', response.user);
-        setUsername(response.user.displayName || response.user.email || '사용자');
-        setUserId(response.user._id || response.user.userId || null);
-        setIsAdmin(response.user.isAdmin || false);
-        setSessionExpired(false);
-        setHasShownExpiredAlert(false);
-      } else {
-        console.log('인증 실패, response:', response);
-        if (username && !hasShownExpiredAlert) {
-          setSessionExpired(true);
-        }
-        setUsername(null);
-        setUserId(null);
-        setIsAdmin(false);
-      }
+      return response; // 응답 반환
     } catch (error) {
       console.error('인증 상태 확인 오류:', error);
       localStorage.removeItem('authToken');
@@ -56,91 +37,104 @@ function App() {
       setUsername(null);
       setUserId(null);
       setIsAdmin(false);
-    } finally {
       setLoading(false);
+      return { authenticated: false };
     }
   };
 
-  // 소셜 로그인 메시지 리스너 설정
-  useEffect(() => {
-    const handleSocialLogin = (event: MessageEvent) => {
-      // 출처 검증 - 더 유연한 검증 방식 적용
-      const allowedOrigins = [
-        import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000',
-        'localhost:3000',
-        'localhost:5173',
-        'yj-0220.github.io',
-        'one-page-mpod.onrender.com'
-      ];
-      
-      // 일부 문자열 포함 여부로 검증
-      if (!allowedOrigins.some(origin => event.origin.includes(origin))) {
-        return;
-      }
-      
-      const { data } = event;
-      
-      // 로그인 성공 메시지 처리
-      if (data && data.type === 'login_success' && data.token) {
-        // 토큰 저장
-        localStorage.setItem('authToken', data.token);
-        if (data.refreshToken) {
-          localStorage.setItem('refreshToken', data.refreshToken);
-        }
-        
-        // 사용자 정보 설정
-        setUsername(data.user || '사용자');
-        
-        // 인증 상태 확인하여 추가 정보 업데이트
-        checkAuthStatus();
-      }
-    };
-    
-    window.addEventListener('message', handleSocialLogin);
-    
-    return () => {
-      window.removeEventListener('message', handleSocialLogin);
-    };
-  }, []);
-
-  // 초기 로딩 및 세션 만료 확인
-  useEffect(() => {
-    checkAuthStatus();
-    
-    // 정기적으로 인증 상태 확인 (5분마다)
-    const sessionCheckInterval = setInterval(() => {
-      checkAuthStatus();
-    }, 5 * 60 * 1000);
-    
-    // 페이지 포커스 시 인증 상태 확인
-    const handleFocus = () => {
-      checkAuthStatus();
-    };
-    
-    window.addEventListener('focus', handleFocus);
-    
-    return () => {
-      clearInterval(sessionCheckInterval);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, []); 
-
-  const handleLogin = (user: string) => {
+  // 로그인 핸들러 함수
+  const handleLogin = useCallback((user: string) => {
+    console.log("로그인 처리:", user);
     setUsername(user);
     setSessionExpired(false);
-    // 로그인 후 권한 확인을 위해 사용자 정보 다시 조회
-    checkAuthStatus();
-  };
+    setActivePage('home');
+    
+    // 백엔드에서 사용자 정보 가져오기
+    checkAuthStatus().then(response => {
+      if (response?.authenticated) {
+        console.log("인증 성공");
+      }
+    });
+  }, []);
+
+  // 소셜 로그인 메시지 리스너
+  useEffect(() => {
+    console.log("메시지 리스너 등록");
+    
+    // 메시지 이벤트 핸들러
+    const messageHandler = (event: MessageEvent) => {
+      console.log("메시지 수신:", event.origin, event.data);
+      
+      // 타입 확인
+      if (event.data && event.data.type === 'LOGIN_SUCCESS') {
+        console.log("로그인 성공 메시지 수신:", event.data);
+        
+        const { token, refreshToken, user } = event.data;
+        
+        // 토큰 저장
+        localStorage.setItem('authToken', token);
+        if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+        localStorage.setItem('userName', user);
+        
+        // API 헤더 설정 (중요)
+        try {
+          const api = require('./api').default;
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          console.log("API 헤더 설정 완료");
+        } catch (error) {
+          console.error("API 헤더 설정 실패:", error);
+        }
+        
+        // 로그인 처리
+        handleLogin(user);
+      }
+    };
+    
+    // 이벤트 리스너 등록
+    window.addEventListener('message', messageHandler);
+    
+    // 정리 함수
+    return () => {
+      window.removeEventListener('message', messageHandler);
+    };
+  }, [handleLogin]);
+
+  // 앱 시작 시 로그인 상태 확인
+  useEffect(() => {
+    const checkLogin = async () => {
+      try {
+        // 토큰 확인
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          setLoading(false);
+          return;
+        }
+        
+        // 백엔드 확인
+        const response = await apiCheckAuthStatus();
+        console.log("로그인 상태:", response);
+        
+        if (response.authenticated && response.user) {
+          setUsername(response.user.displayName || response.user.email);
+          setUserId(response.user._id || response.user.userId);
+          setIsAdmin(response.user.isAdmin || false);
+        }
+      } catch (error) {
+        console.error("로그인 확인 오류:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    checkLogin();
+  }, []);
 
   const handleLogout = async () => {
-    // API 모듈의 로그아웃 함수 사용
     userLogout();
-    
-    // 상태 초기화
     setUsername(null);
     setUserId(null);
     setIsAdmin(false);
-    setActivePage('home'); // 홈으로 리다이렉트
+    setActivePage('home');
   };
 
   // 세션 만료 알림 표시
@@ -178,7 +172,7 @@ function App() {
       <Header 
         activePage={activePage} 
         setActivePage={setActivePage}
-        username={username}
+        username={username} 
         userId={userId}
         isAdmin={isAdmin}
         onLogin={handleLogin}

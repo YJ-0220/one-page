@@ -26,7 +26,6 @@ router.post('/submit', async (req, res) => {
       contact,
     });
   } catch (err) {
-    console.error("문의 저장 오류:", err);
     res.status(500).json({ error: "서버 오류가 발생했습니다." });
   }
 });
@@ -37,7 +36,6 @@ router.get('/list', authenticateJWT, isAdmin, async (req, res) => {
     const contacts = await Contact.find().sort({ createdAt: -1 });
     res.json(contacts);
   } catch (err) {
-    console.error("문의 조회 오류:", err);
     res.status(500).json({ error: "서버 오류가 발생했습니다." });
   }
 });
@@ -57,7 +55,6 @@ router.patch('/mark-read/:id', authenticateJWT, isAdmin, async (req, res) => {
 
     res.json(contact);
   } catch (err) {
-    console.error("문의 업데이트 오류:", err);
     res.status(500).json({ error: "서버 오류가 발생했습니다." });
   }
 });
@@ -76,7 +73,6 @@ router.delete('/delete/:id', authenticateJWT, isAdmin, async (req, res) => {
       deletedId: contact._id 
     });
   } catch (err) {
-    console.error("문의 삭제 오류:", err);
     res.status(500).json({ error: "서버 오류가 발생했습니다." });
   }
 });

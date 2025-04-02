@@ -6,7 +6,7 @@ import path from "path";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: "/one-page/",
+  base: "/one-page/",  // 깃허브 전용 배포 경로
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
