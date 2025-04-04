@@ -2,7 +2,15 @@ import express from "express";
 import passport from "passport";
 import User from "../models/User";
 import axios from "axios";
-import { requireAuth, requireAdmin, generateTokens, refreshAccessToken, verifyToken, JWTPayload, AuthRequest } from "../middleware/authMiddleware";
+import {
+  requireAuth,
+  requireAdmin,
+  generateTokens,
+  refreshAccessToken,
+  verifyToken,
+  JWTPayload,
+  AuthRequest,
+} from "../middleware/authMiddleware";
 
 const router = express.Router();
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
@@ -16,17 +24,23 @@ router.post("/login", async (req, res) => {
 
   try {
     if (!email || !password) {
-      return res.status(400).json({ error: "이메일과 비밀번호를 모두 입력해주세요." });
+      return res
+        .status(400)
+        .json({ error: "이메일과 비밀번호를 모두 입력해주세요." });
     }
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ error: "이메일 또는 비밀번호가 일치하지 않습니다." });
+      return res
+        .status(401)
+        .json({ error: "이메일 또는 비밀번호가 일치하지 않습니다." });
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res.status(401).json({ error: "이메일 또는 비밀번호가 일치하지 않습니다." });
+      return res
+        .status(401)
+        .json({ error: "이메일 또는 비밀번호가 일치하지 않습니다." });
     }
 
     // 로그인 시간 업데이트
@@ -88,7 +102,11 @@ router.get("/status", requireAuth, async (req, res) => {
 // ===== 소셜 로그인 관련 엔드포인트 =====
 
 // 소셜 로그인 성공 응답 생성 함수
-const createSuccessResponse = (accessToken: string, refreshToken: string, userName: string) => {
+const createSuccessResponse = (
+  accessToken: string,
+  refreshToken: string,
+  userName: string
+) => {
   return `
     <html>
     <head>
@@ -111,7 +129,7 @@ const createSuccessResponse = (accessToken: string, refreshToken: string, userNa
                   user: "${userName}"
                 }, "*");
                 
-                setTimeout(() => window.close(), 500);
+                window.close(); // 즉시 창 닫기
               } catch(e) {
                 // localStorage 접근 실패 시 메시지로 전달
                 window.opener.postMessage({
@@ -121,7 +139,7 @@ const createSuccessResponse = (accessToken: string, refreshToken: string, userNa
                   user: "${userName}"
                 }, "*");
                 
-                setTimeout(() => window.close(), 500);
+                window.close(); // 즉시 창 닫기
               }
             } else {
               // 팝업이 아닌 경우 메인 페이지로 리디렉션
@@ -155,7 +173,9 @@ const createSuccessResponse = (accessToken: string, refreshToken: string, userNa
         <p id="status">잠시만 기다려주세요...</p>
         <div id="manualClose">
           <p>자동으로 창이 닫히지 않는 경우:</p>
-          <button onclick="window.close()">창 닫기</button>
+          <button onclick="window.opener.location.reload(); window.close();">
+            로그인 완료 및 창 닫기
+          </button>
         </div>
       </div>
     </body>
@@ -287,50 +307,62 @@ router.get("/kakao/callback", async (req, res) => {
 // ===== 사용자 관리 API =====
 
 // 사용자 목록 조회 (관리자 전용)
-router.get('/users/list', requireAuth, requireAdmin, async (req, res) => {
+router.get("/users/list", requireAuth, requireAdmin, async (req, res) => {
   try {
-    const users = await User.find().select('-password -__v');
+    const users = await User.find().select("-password -__v");
     res.json(users);
   } catch (error) {
-    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    res.status(500).json({ error: "서버 오류가 발생했습니다." });
   }
 });
 
 // 관리자 권한 토글 (관리자 전용)
-router.patch('/users/admin-toggle/:id', requireAuth, requireAdmin, async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-    if (!user) {
-      return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
-    }
-
-    user.isAdmin = !user.isAdmin;
-    await user.save();
-
-    res.json({
-      message: `${user.displayName}의 관리자 권한이 ${user.isAdmin ? '부여' : '제거'}되었습니다.`,
-      user: {
-        _id: user._id,
-        displayName: user.displayName,
-        isAdmin: user.isAdmin
+router.patch(
+  "/users/admin-toggle/:id",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const user = await User.findById(req.params.id);
+      if (!user) {
+        return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
       }
-    });
-  } catch (error) {
-    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+
+      user.isAdmin = !user.isAdmin;
+      await user.save();
+
+      res.json({
+        message: `${user.displayName}의 관리자 권한이 ${
+          user.isAdmin ? "부여" : "제거"
+        }되었습니다.`,
+        user: {
+          _id: user._id,
+          displayName: user.displayName,
+          isAdmin: user.isAdmin,
+        },
+      });
+    } catch (error) {
+      res.status(500).json({ error: "서버 오류가 발생했습니다." });
+    }
   }
-});
+);
 
 // 사용자 삭제 (관리자 전용)
-router.delete('/users/delete/:id', requireAuth, requireAdmin, async (req, res) => {
-  try {
-    const result = await User.findByIdAndDelete(req.params.id);
-    if (!result) {
-      return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
+router.delete(
+  "/users/delete/:id",
+  requireAuth,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const result = await User.findByIdAndDelete(req.params.id);
+      if (!result) {
+        return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
+      }
+      res.json({ message: "사용자가 삭제되었습니다." });
+    } catch (error) {
+      res.status(500).json({ error: "서버 오류가 발생했습니다." });
     }
-    res.json({ message: '사용자가 삭제되었습니다.' });
-  } catch (error) {
-    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
   }
-});
+);
 
 export default router;

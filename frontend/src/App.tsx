@@ -12,32 +12,29 @@ import axios from "axios";
 setupAxiosInterceptors();
 
 // 페이지 로드 시 토큰 확인 및 설정
-const token = localStorage.getItem('authToken');
+const token = localStorage.getItem("authToken");
 if (token) {
-  axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 }
 
 function App() {
   const [activePage, setActivePage] = useState("home");
-  
+
   // useAuth 훅 사용
-  const { 
-    isAuthenticated, 
-    user, 
-    loading, 
-    logout, 
-    checkAuth 
-  } = useAuth();
-  
+  const { isAuthenticated, user, loading, logout, checkAuth } = useAuth();
+
   // 사용자 정보 추출
   const username = user?.displayName || null;
   const isAdmin = user?.isAdmin || false;
 
   // 로그인 핸들러 함수
-  const handleLogin = useCallback((userName: string) => {
-    setActivePage("home");
-    checkAuth().catch(() => {});
-  }, [checkAuth]);
+  const handleLogin = useCallback(
+    (userName: string) => {
+      setActivePage("home");
+      checkAuth().catch(() => {});
+    },
+    [checkAuth]
+  );
 
   // 소셜 로그인 이벤트 리스너
   useEffect(() => {
@@ -48,7 +45,7 @@ function App() {
           localStorage.setItem("authToken", token);
           if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
           localStorage.setItem("userName", user);
-          
+
           axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
           handleLogin(user);
         }

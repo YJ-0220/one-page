@@ -1,26 +1,29 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-const ContactSchema = new mongoose.Schema({
+const contactSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: true
+    required: true,
   },
   email: {
     type: String,
-    required: true
+    required: true,
   },
   message: {
     type: String,
-    required: true
+    required: true,
   },
   isRead: {
     type: Boolean,
-    default: false
+    default: false,
   },
   createdAt: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
 
-export default mongoose.model('Contact', ContactSchema);
+contactSchema.index({ isRead: 1 });
+contactSchema.index({ createdAt: -1 });
+
+export default mongoose.model("Contact", contactSchema);

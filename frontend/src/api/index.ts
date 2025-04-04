@@ -1,8 +1,9 @@
 import axios from "axios";
-import { setApiInstance } from '../utils/authUtils';
+import { setApiInstance } from "../utils/authUtils";
 
 // 환경변수에서 기본 URL 가져오기
-export const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+export const BASE_URL =
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
 export const API_URL = `${BASE_URL}/api`;
 
 // API 기본 설정
@@ -57,21 +58,25 @@ const ensureToken = () => {
 export const userLogin = async (email: string, password: string) => {
   try {
     const response = await api.post("/auth/login", { email, password });
-    
+
     if (response.data.accessToken) {
       localStorage.setItem("authToken", response.data.accessToken);
-      api.defaults.headers.common["Authorization"] = `Bearer ${response.data.accessToken}`;
-      axios.defaults.headers.common["Authorization"] = `Bearer ${response.data.accessToken}`;
+      api.defaults.headers.common[
+        "Authorization"
+      ] = `Bearer ${response.data.accessToken}`;
+      axios.defaults.headers.common[
+        "Authorization"
+      ] = `Bearer ${response.data.accessToken}`;
     }
-    
+
     if (response.data.refreshToken) {
       localStorage.setItem("refreshToken", response.data.refreshToken);
     }
-    
+
     if (response.data.user?.displayName) {
       localStorage.setItem("userName", response.data.user.displayName);
     }
-    
+
     return response.data;
   } catch (error) {
     throw error;
@@ -81,15 +86,17 @@ export const userLogin = async (email: string, password: string) => {
 // 로그아웃
 export const userLogout = () => {
   // authUtils의 removeAuthToken 함수를 직접 import해서 사용
-  import('../utils/authUtils').then(({ removeAuthToken }) => {
-    removeAuthToken();
-  }).catch(() => {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("userName");
-    delete axios.defaults.headers.common["Authorization"];
-    delete api.defaults.headers.common["Authorization"];
-  });
+  import("../utils/authUtils")
+    .then(({ removeAuthToken }) => {
+      removeAuthToken();
+    })
+    .catch(() => {
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("userName");
+      delete axios.defaults.headers.common["Authorization"];
+      delete api.defaults.headers.common["Authorization"];
+    });
 };
 
 // 인증 상태 확인
@@ -99,16 +106,17 @@ export const checkAuthStatus = async () => {
     if (!token) {
       return { authenticated: false };
     }
-    
+
+    // 헤더에 토큰 명시적 추가
     const response = await api.get("/auth/status", {
       headers: {
-        Authorization: `Bearer ${token}`
-      }
+        Authorization: `Bearer ${token}`,
+      },
     });
-    
+
     return response.data;
   } catch (error) {
-    throw error;
+    return { authenticated: false };
   }
 };
 
@@ -117,14 +125,14 @@ export const checkAuthStatus = async () => {
 export const getUsersList = async () => {
   try {
     ensureToken(); // 토큰 확인
-    const response = await api.get('/auth/users/list');
+    const response = await api.get("/auth/users/list");
     return response.data;
   } catch (error: any) {
     if (error.response?.status === 403) {
-      throw new Error('관리자 권한이 필요합니다');
+      throw new Error("관리자 권한이 필요합니다");
     }
     if (error.response?.status === 401) {
-      throw new Error('로그인이 필요합니다');
+      throw new Error("로그인이 필요합니다");
     }
     throw error;
   }
@@ -138,7 +146,7 @@ export const toggleUserAdminRole = async (userId: string) => {
     return response.data;
   } catch (error: any) {
     if (error.response?.status === 403) {
-      throw new Error('관리자 권한이 필요합니다');
+      throw new Error("관리자 권한이 필요합니다");
     }
     throw error;
   }
@@ -152,7 +160,7 @@ export const deleteUserById = async (userId: string) => {
     return response.data;
   } catch (error: any) {
     if (error.response?.status === 403) {
-      throw new Error('관리자 권한이 필요합니다');
+      throw new Error("관리자 권한이 필요합니다");
     }
     throw error;
   }
@@ -160,9 +168,17 @@ export const deleteUserById = async (userId: string) => {
 
 // ===== 문의 관리 API =====
 // 문의 전송
-export const submitContactForm = async (name: string, email: string, message: string) => {
+export const submitContactForm = async (
+  name: string,
+  email: string,
+  message: string
+) => {
   try {
-    const response = await api.post('/contact/submit', { name, email, message });
+    const response = await api.post("/contact/submit", {
+      name,
+      email,
+      message,
+    });
     return response.data;
   } catch (error) {
     throw error;
@@ -173,11 +189,11 @@ export const submitContactForm = async (name: string, email: string, message: st
 export const getContactsList = async () => {
   try {
     ensureToken(); // 토큰 확인
-    const response = await api.get('/contact/list');
+    const response = await api.get("/contact/list");
     return response.data;
   } catch (error: any) {
     if (error.response?.status === 403) {
-      throw new Error('관리자 권한이 필요합니다');
+      throw new Error("관리자 권한이 필요합니다");
     }
     throw error;
   }
@@ -205,4 +221,47 @@ export const deleteContact = async (contactId: string) => {
   }
 };
 
-export default api; 
+// ===== 대시보드 API =====
+// 방문자 통계 조회
+export const getVisitorStats = async () => {
+  try {
+    ensureToken(); // 토큰 확인
+    const response = await api.get("/stats/visitors");
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.status === 403) {
+      throw new Error("관리자 권한이 필요합니다");
+    }
+    throw error;
+  }
+};
+
+// 읽지 않은 문의 수 조회
+export const getUnreadContactsCount = async () => {
+  try {
+    ensureToken(); // 토큰 확인
+    const response = await api.get("/contact/unread-count");
+    return response.data.count;
+  } catch (error: any) {
+    if (error.response?.status === 403) {
+      throw new Error("관리자 권한이 필요합니다");
+    }
+    throw error;
+  }
+};
+
+// 대시보드 요약 정보 조회 (모든 주요 지표)
+export const getDashboardSummary = async () => {
+  try {
+    ensureToken(); // 토큰 확인
+    const response = await api.get("/dashboard/summary");
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.status === 403) {
+      throw new Error("관리자 권한이 필요합니다");
+    }
+    throw error;
+  }
+};
+
+export default api;
