@@ -2,7 +2,6 @@ import axios from "axios";
 
 // 기본 URL 설정
 const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
-console.log("API URL 설정됨:", API_URL);
 
 // axios 인스턴스 생성
 const api = axios.create({
@@ -43,14 +42,6 @@ api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('authToken');
     
-    // 디버깅용 로그 추가
-    if (config.url && config.url.includes('/api/auth/status')) {
-      console.log(`API 요청 토큰 상태: ${token ? '있음' : '없음'}`);
-      if (token) {
-        console.log(`사용중인 토큰: ${token.substring(0, 10)}...`);
-      }
-    }
-    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -58,7 +49,6 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error("API 요청 인터셉터 오류:", error);
     return Promise.reject(error);
   }
 );

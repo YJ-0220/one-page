@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import axios from "axios";
-import { userLogin, BASE_URL } from "../api";
+import { userLogin } from "../api";
 
 interface LoginFormProps {
   onLogin: (username: string) => void;
@@ -27,59 +27,18 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
       setLoading(true);
       const response = await userLogin(email, password);
       
-      // 로그인 성공 처리 개선
-      console.log("이메일 로그인 성공:", response);
-      
-      // 로그인 처리 전 1초 지연 (토큰 저장 시간 확보)
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // 직접 토큰 확인
-      const token = localStorage.getItem('authToken');
-      console.log("로그인 폼에서 토큰 확인:", token ? '있음' : '없음');
-      
-      // 토큰이 없는 경우 전역 변수나 쿠키에서 복구 시도
-      if (!token) {
-        console.warn("localStorage에 토큰이 없어 복구 시도");
-        
-        // 전역 변수에서 복구
-        const globalToken = (window as any)._userToken;
-        if (globalToken) {
-          localStorage.setItem('authToken', globalToken);
-          console.log("전역 변수에서 토큰 복구됨");
-        } else {
-          // 쿠키에서 찾기
-          const cookies = document.cookie.split(';');
-          const tokenCookie = cookies.find(c => c.trim().startsWith('authToken='));
-          if (tokenCookie) {
-            const tokenValue = tokenCookie.split('=')[1];
-            localStorage.setItem('authToken', tokenValue);
-            console.log("쿠키에서 토큰 복구됨");
-          } else {
-            console.error("모든 저장소에서 토큰을 찾을 수 없음!");
-          }
-        }
-      }
-      
-      // 사용자 이름 확인
+      // 로그인 성공
       const userName = response.user?.displayName || response.user?.email || email;
-      console.log("로그인 사용자:", userName);
       
-      // 강제로 헤더 설정
-      if (token) {
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      }
-      
-      // 상위 컴포넌트에 알림
+      // 잠시 대기 후 처리
+      await new Promise(resolve => setTimeout(resolve, 500));
       onLogin(userName);
-      
-      // 로그인 모달 닫기
       onClose();
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.data?.error) {
         setError(err.response.data.error);
       } else {
         setError("로그인 중 오류가 발생했습니다.");
-        console.error("로그인 오류 상세:", err);
       }
     } finally {
       setLoading(false);
@@ -88,45 +47,35 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
 
   // 소셜 로그인 함수
   const handleSocialLogin = (provider: string) => {
-    // 소셜 로그인 URL 구성 (API 경로 중복 제거)
-    const socialLoginUrl = `${BASE_URL}/api/auth/${provider}`;
+    const baseUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+    const socialLoginUrl = `${baseUrl}/api/auth/${provider}`;
     
-    console.log(`${provider} 로그인 시도:`, socialLoginUrl);
-    
-    // 팝업 창 중앙에 위치하도록 설정
+    // 팝업 창 중앙에 위치
     const width = 600;
     const height = 700;
     const left = window.innerWidth / 2 - width / 2;
     const top = window.innerHeight / 2 - height / 2;
     
-    // 팝업 창 열기
     try {
-      console.log("팝업 열기 시도:", socialLoginUrl);
       const popup = window.open(
         socialLoginUrl, 
         `${provider}Login`, 
         `width=${width},height=${height},top=${top},left=${left}`
       );
       
-      // 팝업 차단 감지
       if (!popup || popup.closed || typeof popup.closed === 'undefined') {
         alert("팝업이 차단되었습니다. 브라우저 설정에서 팝업 차단을 해제해주세요.");
-        console.error("팝업 차단 감지됨");
       } else {
-        console.log("팝업 열기 성공");
-        
-        // 팝업 창 상태 폴링 (파이어폭스 호환성)
+        // 팝업 창 상태 폴링
         const checkPopupClosed = setInterval(() => {
           if (!popup || popup.closed) {
             clearInterval(checkPopupClosed);
-            console.log("팝업 닫힘 감지");
             
             // 로그인 상태 확인
             setTimeout(() => {
               const token = localStorage.getItem('authToken');
               const user = localStorage.getItem('userName');
               if (token && user) {
-                console.log("소셜 로그인 후 토큰 감지");
                 onLogin(user);
                 onClose();
               }
@@ -135,7 +84,6 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
         }, 500);
       }
     } catch (error) {
-      console.error("팝업 열기 오류:", error);
       alert("로그인 창을 열 수 없습니다. 브라우저 설정을 확인해주세요.");
     }
   };

@@ -21,13 +21,11 @@ const Header = ({ activePage, setActivePage, username, userId, isAdmin, onLogin,
   // username이 변경되면 로그인 모달 닫기
   useEffect(() => {
     if (username) {
-      console.log("로그인 완료 감지:", username);
       setShowLoginModal(false);
     }
   }, [username]);
   
   const handleLogin = (user: string) => {
-    console.log("로그인 처리:", user);
     onLogin(user);
     setShowLoginModal(false); // 명시적으로 모달 닫기
   };

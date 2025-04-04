@@ -1,6 +1,6 @@
 import express from 'express';
 import Contact from '../models/Contact';
-import { authenticateJWT, isAdmin } from '../middleware/auth';
+import { requireAuth, requireAdmin } from '../middleware/authMiddleware';
 
 const router = express.Router();
 
@@ -31,7 +31,7 @@ router.post('/submit', async (req, res) => {
 });
 
 // 관리자용 문의 목록 조회 API
-router.get('/list', authenticateJWT, isAdmin, async (req, res) => {
+router.get('/list', requireAuth, requireAdmin, async (req, res) => {
   try {
     const contacts = await Contact.find().sort({ createdAt: -1 });
     res.json(contacts);
@@ -41,7 +41,7 @@ router.get('/list', authenticateJWT, isAdmin, async (req, res) => {
 });
 
 // 관리자용 문의 읽음 표시 API
-router.patch('/mark-read/:id', authenticateJWT, isAdmin, async (req, res) => {
+router.patch('/mark-read/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const contact = await Contact.findByIdAndUpdate(
       req.params.id,
@@ -60,7 +60,7 @@ router.patch('/mark-read/:id', authenticateJWT, isAdmin, async (req, res) => {
 });
 
 // 관리자용 문의 삭제 API
-router.delete('/delete/:id', authenticateJWT, isAdmin, async (req, res) => {
+router.delete('/delete/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const contact = await Contact.findByIdAndDelete(req.params.id);
 

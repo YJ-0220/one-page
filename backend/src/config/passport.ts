@@ -8,20 +8,6 @@ import User from '../models/User';
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3000";
 
 export const configurePassport = () => {
-  // 세션에 사용자 직렬화/역직렬화
-  passport.serializeUser((user: any, done) => {
-    done(null, user._id);
-  });
-
-  passport.deserializeUser(async (id: string, done) => {
-    try {
-      const user = await User.findById(id);
-      done(null, user);
-    } catch (error) {
-      done(error, null);
-    }
-  });
-
   // Google OAuth 전략 설정
   passport.use(
     new GoogleStrategy(
@@ -160,7 +146,7 @@ export const configurePassport = () => {
       )
     );
   } else {
-    console.warn("KAKAO_CLIENT_ID 또는 KAKAO_CLIENT_SECRET 환경 변수가 설정되지 않아 카카오 로그인이 비활성화됩니다.");
+    // 카카오 로그인이 비활성화됨
   }
 
   return passport;
