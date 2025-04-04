@@ -80,12 +80,12 @@ const startServer = async () => {
     if (!adminExists) {
       const adminPassword = process.env.ADMIN_DEFAULT_PASSWORD || "admin123";
       const hashedPassword = await bcrypt.hash(adminPassword, 10);
-      
-      await User.create({
-        displayName: "관리자",
-        email: "admin@example.com",
+
+    await User.create({
+      displayName: "관리자",
+      email: "admin@example.com",
         password: hashedPassword,
-        isAdmin: true,
+      isAdmin: true,
       });
     }
 
