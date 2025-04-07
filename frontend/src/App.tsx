@@ -7,6 +7,7 @@ import ContactWidget from "@/components/ContactWidget";
 import { setupAxiosInterceptors } from "./utils/authUtils";
 import useAuth from "./hooks/useAuth";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 // axios 인터셉터 설정 (앱 시작 시 1회 실행)
 setupAxiosInterceptors();
@@ -19,6 +20,8 @@ if (token) {
 
 function App() {
   const [activePage, setActivePage] = useState("home");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const navigate = useNavigate();
 
   // useAuth 훅 사용
   const { isAuthenticated, user, loading, logout, checkAuth } = useAuth();

@@ -115,35 +115,17 @@ const createSuccessResponse = (
         function completeLogin() {
           try {
             if (window.opener) {
-              // localStorage에 직접 저장
-              try {
-                window.opener.localStorage.setItem('authToken', "${accessToken}");
-                window.opener.localStorage.setItem('refreshToken', "${refreshToken}");
-                window.opener.localStorage.setItem('userName', "${userName}");
-                
-                // postMessage로도 전송
-                window.opener.postMessage({
-                  type: 'LOGIN_SUCCESS',
-                  token: "${accessToken}",
-                  refreshToken: "${refreshToken}", 
-                  user: "${userName}"
-                }, "*");
-                
-                window.close(); // 즉시 창 닫기
-              } catch(e) {
-                // localStorage 접근 실패 시 메시지로 전달
-                window.opener.postMessage({
-                  type: 'LOGIN_SUCCESS',
-                  token: "${accessToken}",
-                  refreshToken: "${refreshToken}", 
-                  user: "${userName}"
-                }, "*");
-                
-                window.close(); // 즉시 창 닫기
-              }
+              // 팝업 창인 경우: postMessage로 메인 창에 알림
+              window.opener.postMessage({
+                type: 'LOGIN_SUCCESS',
+                token: "${accessToken}",
+                refreshToken: "${refreshToken}", 
+                user: "${userName}"
+              }, "*");
+              window.close();
             } else {
-              // 팝업이 아닌 경우 메인 페이지로 리디렉션
-              window.location.href = "${CLIENT_URL}?token=${accessToken}&refresh=${refreshToken}&user=${userName}";
+              // 팝업이 아닌 경우: 쿼리 파라미터와 함께 리디렉션
+              window.location.href = "${CLIENT_URL}/?token=${accessToken}&refresh=${refreshToken}&user=${userName}";
             }
           } catch(e) {
             document.getElementById('status').textContent = "오류 발생: " + e.message;
