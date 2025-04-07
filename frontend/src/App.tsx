@@ -29,7 +29,7 @@ function App() {
 
   // 로그인 핸들러 함수
   const handleLogin = useCallback(
-    (userName: string) => {
+    (_userName: string) => {
       setActivePage("home");
       checkAuth().catch(() => {});
     },
