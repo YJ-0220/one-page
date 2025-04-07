@@ -120,17 +120,34 @@ const createSuccessResponse = (
         function completeLogin() {
           try {
             if (window.opener) {
-              // 팝업 창인 경우: postMessage로 메인 창에 알림
+              // 부모 창에 메시지 전송
               window.opener.postMessage({
                 type: 'LOGIN_SUCCESS',
                 token: "${accessToken}",
                 refreshToken: "${refreshToken}", 
                 user: "${userName}"
               }, "*");
-              window.close();
+              
+              // 명시적으로 토큰 저장 시도
+              try {
+                window.opener.localStorage.setItem('authToken', "${accessToken}");
+                window.opener.localStorage.setItem('refreshToken', "${refreshToken}");
+                window.opener.localStorage.setItem('userName', "${userName}");
+              } catch(e) {
+                console.log('로컬 스토리지 직접 접근 실패, postMessage로 전달됨');
+              }
+              
+              // 메시지 전송 후 창 닫기 지연
+              setTimeout(() => {
+                window.close();
+                // 창이 닫히지 않는 경우 강제 새로고침 시도
+                setTimeout(() => {
+                  window.opener.location.reload();
+                }, 500);
+              }, 1000);
             } else {
-              // 팝업이 아닌 경우: 쿼리 파라미터와 함께 리디렉션
-              window.location.href = "${CLIENT_URL}/?token=${accessToken}&refresh=${refreshToken}&user=${userName}";
+              // 버튼 표시하여 수동 닫기 유도
+              document.getElementById('manualClose').style.display = 'block';
             }
           } catch(e) {
             document.getElementById('status').textContent = "오류 발생: " + e.message;
@@ -138,12 +155,7 @@ const createSuccessResponse = (
           }
         }
         
-        // 페이지 로드 시 실행
-        window.onload = function() {
-          document.getElementById('status').textContent = '로그인 성공! 잠시만 기다려주세요...';
-          // 바로 로그인 완료 처리
-          completeLogin();
-        };
+        window.onload = completeLogin;
       </script>
       <style>
         body {font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #f5f5f5;}
@@ -151,16 +163,16 @@ const createSuccessResponse = (
         h2 {color: #4CAF50; font-size: 18px;}
         button {padding: 8px 16px; background: #4285f4; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 15px;}
         #status {margin: 15px 0; font-weight: bold; font-size: 14px;}
-        #manualClose {display: none; margin-top: 15px;}
+        #manualClose {display: block; margin-top: 15px;}
       </style>
     </head>
     <body>
       <div class="container">
         <h2>로그인 성공!</h2>
-        <p id="status">잠시만 기다려주세요...</p>
+        <p id="status">로그인이 완료되었습니다.</p>
         <div id="manualClose">
-          <p>자동으로 창이 닫히지 않는 경우:</p>
-          <button onclick="window.opener.location.reload(); window.close();">
+          <p><strong>창이 자동으로 닫히지 않는 경우, 아래 버튼을 클릭하세요:</strong></p>
+          <button onclick="window.opener.location.reload(); window.close();" style="padding: 10px 20px; font-size: 16px; background: #4285f4; color: white; border: none; border-radius: 4px; cursor: pointer;">
             로그인 완료 및 창 닫기
           </button>
         </div>
