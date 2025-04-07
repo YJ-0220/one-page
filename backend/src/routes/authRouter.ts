@@ -1,6 +1,7 @@
 import express from "express";
 import passport from "passport";
 import User from "../models/User";
+import dotenv from "dotenv";
 import axios from "axios";
 import {
   requireAuth,
@@ -12,6 +13,10 @@ import {
   AuthRequest,
 } from "../middleware/authMiddleware";
 
+// 환경변수 가져오기
+dotenv.config();
+
+// 환경변수 설정
 const router = express.Router();
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3000";
