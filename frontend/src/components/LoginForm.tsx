@@ -5,9 +5,18 @@ import { userLogin } from "../api";
 interface LoginFormProps {
   onLogin: (username: string) => void;
   onClose: () => void;
+  modalMode?: boolean;
+  socialOnly?: boolean;
+  onSocialLoginClick?: () => void;
 }
 
-const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
+const LoginForm = ({ 
+  onLogin, 
+  onClose, 
+  modalMode = false, 
+  socialOnly = false,
+  onSocialLoginClick 
+}: LoginFormProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -47,45 +56,30 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
 
   // 소셜 로그인 함수
   const handleSocialLogin = (provider: string) => {
-    const baseUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
-    const socialLoginUrl = `${baseUrl}/api/auth/${provider}`;
-    
-    // 팝업 창 중앙에 위치
-    const width = 600;
-    const height = 700;
-    const left = window.innerWidth / 2 - width / 2;
-    const top = window.innerHeight / 2 - height / 2;
-    
-    try {
-      const popup = window.open(
-        socialLoginUrl, 
-        `${provider}Login`, 
-        `width=${width},height=${height},top=${top},left=${left}`
-      );
-      
-      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-        alert("팝업이 차단되었습니다. 브라우저 설정에서 팝업 차단을 해제해주세요.");
-      } else {
-        // 팝업 창 상태 폴링
-        const checkPopupClosed = setInterval(() => {
-          if (!popup || popup.closed) {
-            clearInterval(checkPopupClosed);
-            
-            // 로그인 상태 확인
-            setTimeout(() => {
-              const token = localStorage.getItem('authToken');
-              const user = localStorage.getItem('userName');
-              if (token && user) {
-                onLogin(user);
-                onClose();
-              }
-            }, 1000);
-          }
-        }, 500);
-      }
-    } catch (error) {
-      alert("로그인 창을 열 수 없습니다. 브라우저 설정을 확인해주세요.");
+    if (modalMode) {
+      // 모달 모드에서는 직접 리다이렉트
+      const baseUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+      window.location.href = `${baseUrl}/api/auth/${provider}`;
+    } else if (onSocialLoginClick) {
+      // 소셜 로그인 모달을 표시하는 콜백 호출
+      onSocialLoginClick();
+    } else {
+      // 직접 리다이렉트
+      const baseUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+      window.location.href = `${baseUrl}/api/auth/${provider}`;
     }
+  };
+
+  const handleGoogleLogin = () => {
+    handleSocialLogin("google");
+  };
+
+  const handleKakaoLogin = () => {
+    handleSocialLogin("kakao");
+  };
+
+  const handleLineLogin = () => {
+    handleSocialLogin("line");
   };
 
   return (
@@ -96,77 +90,81 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
         </div>
       )}
 
-      <form onSubmit={handleSubmit}>
-        <div className="mb-4">
-          <label
-            htmlFor="email"
-            className="block text-gray-700 text-sm font-bold mb-2"
-          >
-            이메일
-          </label>
-          <input
-            type="email"
-            id="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="이메일 입력"
-          />
-        </div>
+      {!socialOnly && (
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label
+              htmlFor="email"
+              className="block text-gray-700 text-sm font-bold mb-2"
+            >
+              이메일
+            </label>
+            <input
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="이메일 입력"
+            />
+          </div>
 
-        <div className="mb-6">
-          <label
-            htmlFor="password"
-            className="block text-gray-700 text-sm font-bold mb-2"
-          >
-            비밀번호
-          </label>
-          <input
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="비밀번호 입력"
-          />
-        </div>
+          <div className="mb-6">
+            <label
+              htmlFor="password"
+              className="block text-gray-700 text-sm font-bold mb-2"
+            >
+              비밀번호
+            </label>
+            <input
+              type="password"
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="비밀번호 입력"
+            />
+          </div>
 
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="py-2 px-4 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            닫기
-          </button>
-          <button
-            type="submit"
-            disabled={loading}
-            className={`${
-              loading ? "bg-blue-400" : "bg-blue-500 hover:bg-blue-700"
-            } text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500`}
-          >
-            {loading ? "로그인 중..." : "로그인"}
-          </button>
-        </div>
-      </form>
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="py-2 px-4 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              닫기
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className={`${
+                loading ? "bg-blue-400" : "bg-blue-500 hover:bg-blue-700"
+              } text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500`}
+            >
+              {loading ? "로그인 중..." : "로그인"}
+            </button>
+          </div>
+        </form>
+      )}
 
       {/* 소셜 로그인 섹션 */}
-      <div className="mt-6">
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300"></div>
+      <div className={socialOnly ? "" : "mt-6"}>
+        {!socialOnly && (
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">
+                소셜 계정으로 로그인
+              </span>
+            </div>
           </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">
-              소셜 계정으로 로그인
-            </span>
-          </div>
-        </div>
+        )}
 
         <div className="mt-6 grid grid-cols-3 gap-3">
           <button
-            onClick={() => handleSocialLogin("google")}
+            onClick={handleGoogleLogin}
             className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
           >
             <svg className="w-5 h-5" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">
@@ -179,7 +177,7 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
           </button>
 
           <button
-            onClick={() => handleSocialLogin("kakao")}
+            onClick={handleKakaoLogin}
             className="w-full inline-flex justify-center py-2 px-4 border rounded-md shadow-sm bg-[#FEE500] text-sm font-medium text-[#3A1D1D] hover:bg-[#F6DC00]"
           >
             <svg className="w-5 h-5" aria-hidden="true" viewBox="0 0 24 24">
@@ -190,7 +188,7 @@ const LoginForm = ({ onLogin, onClose }: LoginFormProps) => {
           </button>
 
           <button
-            onClick={() => handleSocialLogin("line")}
+            onClick={handleLineLogin}
             className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
           >
             <svg className="w-5 h-5" aria-hidden="true" fill="currentColor" viewBox="0 0 24 24">

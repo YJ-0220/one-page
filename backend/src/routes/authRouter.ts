@@ -106,80 +106,17 @@ router.get("/status", requireAuth, async (req, res) => {
 
 // ===== 소셜 로그인 관련 엔드포인트 =====
 
-// 소셜 로그인 성공 응답 생성 함수
-const createSuccessResponse = (
-  accessToken: string,
-  refreshToken: string,
+// 팝업 응답 함수 대신 리다이렉트 방식 사용
+const handleLoginSuccess = (
+  req: any, 
+  res: any, 
+  accessToken: string, 
+  refreshToken: string, 
   userName: string
 ) => {
-  return `
-    <html>
-    <head>
-      <title>로그인 성공</title>
-      <script>
-        function completeLogin() {
-          try {
-            if (window.opener) {
-              // 부모 창에 메시지 전송
-              window.opener.postMessage({
-                type: 'LOGIN_SUCCESS',
-                token: "${accessToken}",
-                refreshToken: "${refreshToken}", 
-                user: "${userName}"
-              }, "*");
-              
-              // 명시적으로 토큰 저장 시도
-              try {
-                window.opener.localStorage.setItem('authToken', "${accessToken}");
-                window.opener.localStorage.setItem('refreshToken', "${refreshToken}");
-                window.opener.localStorage.setItem('userName', "${userName}");
-              } catch(e) {
-                console.log('로컬 스토리지 직접 접근 실패, postMessage로 전달됨');
-              }
-              
-              // 메시지 전송 후 창 닫기 지연
-              setTimeout(() => {
-                window.close();
-                // 창이 닫히지 않는 경우 강제 새로고침 시도
-                setTimeout(() => {
-                  window.opener.location.reload();
-                }, 500);
-              }, 1000);
-            } else {
-              // 버튼 표시하여 수동 닫기 유도
-              document.getElementById('manualClose').style.display = 'block';
-            }
-          } catch(e) {
-            document.getElementById('status').textContent = "오류 발생: " + e.message;
-            document.getElementById('manualClose').style.display = 'block';
-          }
-        }
-        
-        window.onload = completeLogin;
-      </script>
-      <style>
-        body {font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #f5f5f5;}
-        .container {max-width: 300px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);}
-        h2 {color: #4CAF50; font-size: 18px;}
-        button {padding: 8px 16px; background: #4285f4; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 15px;}
-        #status {margin: 15px 0; font-weight: bold; font-size: 14px;}
-        #manualClose {display: block; margin-top: 15px;}
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <h2>로그인 성공!</h2>
-        <p id="status">로그인이 완료되었습니다.</p>
-        <div id="manualClose">
-          <p><strong>창이 자동으로 닫히지 않는 경우, 아래 버튼을 클릭하세요:</strong></p>
-          <button onclick="window.opener.location.reload(); window.close();" style="padding: 10px 20px; font-size: 16px; background: #4285f4; color: white; border: none; border-radius: 4px; cursor: pointer;">
-            로그인 완료 및 창 닫기
-          </button>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
+  // 토큰 정보와 함께 프론트엔드로 리다이렉트 (HashRouter 사용)
+  const redirectUrl = `${CLIENT_URL}/#/login-success?token=${accessToken}&refresh=${refreshToken}&user=${encodeURIComponent(userName)}`;
+  res.redirect(redirectUrl);
 };
 
 // 소셜 로그인 엔드포인트 (Passport 유지)
@@ -205,30 +142,31 @@ router.get("/kakao", (req, res) => {
 router.get(
   "/google/callback",
   passport.authenticate("google", {
-    failureRedirect: `${CLIENT_URL}/login`,
-    session: false, // 세션 사용 안함
+    failureRedirect: `${CLIENT_URL}/login?error=google-login-failed`,
+    session: false,
   }),
   (req, res) => {
     const user = req.user as any;
     const { accessToken, refreshToken } = generateTokens(user);
     const userName = user.displayName || user.email || "사용자";
 
-    res.send(createSuccessResponse(accessToken, refreshToken, userName));
+    // 팝업 응답 대신 리다이렉트 사용
+    handleLoginSuccess(req, res, accessToken, refreshToken, userName);
   }
 );
 
 router.get(
   "/line/callback",
   passport.authenticate("line", {
-    failureRedirect: `${CLIENT_URL}/login`,
-    session: false, // 세션 사용 안함
+    failureRedirect: `${CLIENT_URL}/login?error=line-login-failed`,
+    session: false,
   }),
   (req, res) => {
     const user = req.user as any;
     const { accessToken, refreshToken } = generateTokens(user);
     const userName = user.displayName || "사용자";
 
-    res.send(createSuccessResponse(accessToken, refreshToken, userName));
+    handleLoginSuccess(req, res, accessToken, refreshToken, userName);
   }
 );
 
@@ -297,10 +235,10 @@ router.get("/kakao/callback", async (req, res) => {
     const { accessToken, refreshToken } = generateTokens(user);
     const userName = user.displayName || "사용자";
 
-    // 로그인 성공 후 페이지 이동
-    res.send(createSuccessResponse(accessToken, refreshToken, userName));
+    // 리다이렉트 방식으로 변경
+    handleLoginSuccess(req, res, accessToken, refreshToken, userName);
   } catch (error) {
-    res.redirect(`${CLIENT_URL}/login?error=카카오 로그인 실패`);
+    res.redirect(`${CLIENT_URL}/login?error=kakao-login-failed`);
   }
 });
 

@@ -3,10 +3,13 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import Home from "@/pages/Home";
 import AdminPage from "@/pages/Admin";
+import Login from "@/pages/Login";
 import ContactWidget from "@/components/ContactWidget";
 import { setupAxiosInterceptors } from "./utils/authUtils";
 import useAuth from "./hooks/useAuth";
 import axios from "axios";
+import { Routes, Route, Navigate } from "react-router-dom";
+import LoginSuccess from "./components/LoginSuccess";
 
 // axios 인터셉터 설정 (앱 시작 시 1회 실행)
 setupAxiosInterceptors();
@@ -18,7 +21,7 @@ if (token) {
 }
 
 function App() {
-  const [activePage, setActivePage] = useState("home");
+  const [activePage, setActivePage] = useState<string>("home");
 
   // useAuth 훅 사용
   const { isAuthenticated, user, loading, logout, checkAuth } = useAuth();
@@ -33,86 +36,36 @@ function App() {
       setActivePage("home");
       checkAuth().catch(() => {});
     },
-    [checkAuth]
+    [checkAuth, setActivePage]
   );
 
-  // 소셜 로그인 이벤트 리스너
+  // URL 쿼리 파라미터 처리 (이제 이 기능은 LoginSuccess 컴포넌트로 이동)
   useEffect(() => {
-    const messageHandler = (event: MessageEvent) => {
-      try {
-        if (event.data && event.data.type === "LOGIN_SUCCESS") {
-          const { token, refreshToken, user } = event.data;
-          localStorage.setItem("authToken", token);
-          if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
-          localStorage.setItem("userName", user);
+    // URL에 토큰이 있는 경우에도 처리 (이전 방식과의 호환성)
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
 
-          axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-          handleLogin(user);
-        }
-      } catch (error) {}
-    };
-
-    const storageHandler = (e: StorageEvent) => {
-      if (e.key === "authToken" && e.newValue) {
-        const user = localStorage.getItem("userName");
-        if (user) {
-          handleLogin(user);
-        }
-      }
-    };
-
-    window.addEventListener("message", messageHandler);
-    window.addEventListener("storage", storageHandler);
-
-    return () => {
-      window.removeEventListener("message", messageHandler);
-      window.removeEventListener("storage", storageHandler);
-    };
-  }, [handleLogin]);
-
-  // URL 파라미터로부터 토큰과 사용자 정보 확인
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get("token");
-    const refresh = urlParams.get("refresh");
-    const user = urlParams.get("user");
-
-    // URL에서 파라미터 제거
     if (token) {
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-
-    // 직접 URL 파라미터로 토큰 전달받은 경우
-    if (token && user) {
-      // 토큰 저장
+      // 토큰 저장 및 URL 정리
       localStorage.setItem("authToken", token);
-      if (refresh) localStorage.setItem("refreshToken", refresh);
-      localStorage.setItem("userName", user);
+      if (params.get("refresh"))
+        localStorage.setItem("refreshToken", params.get("refresh") || "");
+      if (params.get("user"))
+        localStorage.setItem("userName", params.get("user") || "");
 
       // API 헤더 설정
       axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
-      // 로그인 실행
-      handleLogin(user);
+      // URL 정리 및 인증 상태 확인
+      window.history.replaceState({}, document.title, window.location.pathname);
+      checkAuth().catch(() => {});
     }
-  }, [handleLogin]);
+  }, [checkAuth]);
 
   // 로그아웃 핸들러
   const handleLogout = () => {
     logout();
     setActivePage("home");
-  };
-
-  // 콘텐츠 렌더링
-  const renderContent = () => {
-    switch (activePage) {
-      case "home":
-        return <Home username={username || "방문자"} />;
-      case "admin":
-        return <AdminPage onLogin={handleLogin} isLoggedIn={isAuthenticated} />;
-      default:
-        return <Home username={username || "방문자"} />;
-    }
   };
 
   // 로딩 중이면 로딩 표시
@@ -131,7 +84,26 @@ function App() {
         userId={user?._id || null}
         onLogin={handleLogin}
       />
-      <main className="main-content">{renderContent()}</main>
+      <main className="main-content">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/login-success" element={<LoginSuccess />} />
+          <Route
+            path="/admin"
+            element={
+              isAuthenticated ? (
+                <AdminPage
+                  onLogin={handleLogin}
+                  isLoggedIn={isAuthenticated}
+                />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+        </Routes>
+      </main>
       <ContactWidget />
       <Footer />
     </div>
