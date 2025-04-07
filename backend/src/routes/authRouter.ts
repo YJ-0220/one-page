@@ -298,6 +298,7 @@ router.get("/kakao/callback", async (req, res) => {
     const { accessToken, refreshToken } = generateTokens(user);
     const userName = user.displayName || "사용자";
 
+    // 로그인 성공 후 페이지 이동
     res.send(createSuccessResponse(accessToken, refreshToken, userName));
   } catch (error) {
     res.redirect(`${CLIENT_URL}/login?error=카카오 로그인 실패`);
