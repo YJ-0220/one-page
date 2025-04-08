@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
-import LoginForm from "@/components/LoginForm";
 import EditProfileForm from "@/components/EditProfileForm";
 import LogoIcon from "@/assets/faviconImg.png";
 import { useNavigate } from "react-router-dom";
@@ -11,8 +10,10 @@ interface HeaderProps {
   username: string | null;
   userId: string | null;
   isAdmin: boolean;
-  onLogin: (username: string) => void;
+  onLogin: (username: string) => Promise<void> | void;
   onLogout: () => void;
+  email: string | null;
+  photoURL: string | null;
 }
 
 const Header = ({
@@ -23,22 +24,13 @@ const Header = ({
   isAdmin,
   onLogin,
   onLogout,
+  email,
+  photoURL,
 }: HeaderProps) => {
-  const [showLoginModal, setShowLoginModal] = useState(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const navigate = useNavigate();
 
-  // username이 변경되면 로그인 모달 닫기
-  useEffect(() => {
-    if (username) {
-      setShowLoginModal(false);
-    }
-  }, [username]);
-
-  const handleLogin = (user: string) => {
-    onLogin(user);
-    setShowLoginModal(false); // 명시적으로 모달 닫기
-  };
+  const displayName = username || email || '사용자';
 
   return (
     <header className="bg-[#ffffffd0] shadow-sm fixed top-0 left-0 right-0 z-50 w-full">
@@ -48,10 +40,7 @@ const Header = ({
             className="flex justify-start lg:w-0 lg:flex-1 cursor-pointer"
             onClick={() => {
               setActivePage("home");
-              const homeSection = document.getElementById("home");
-              if (homeSection) {
-                homeSection.scrollIntoView({ behavior: "smooth" });
-              }
+              navigate("/");
             }}
           >
             <h1 className="w-10 h-10 text-3xl font-bold text-gray-900">
@@ -66,7 +55,10 @@ const Header = ({
               <div className="flex items-center gap-2">
                 {isAdmin && (
                   <button
-                    onClick={() => setActivePage("admin")}
+                    onClick={() => {
+                      setActivePage("admin");
+                      navigate("/admin");
+                    }}
                     className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
                     관리자

@@ -1,26 +1,28 @@
 import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
+import passport from "passport";
 import mongoose from "mongoose";
+import { configurePassport } from "./config/passport";
 import authRouter from "./routes/authRouter";
 import contactRouter from "./routes/contactRouter";
 import statsRouter from "./routes/statsRouter";
-import { configurePassport } from "./config/passport";
 import User from "./models/User";
 import bcrypt from "bcryptjs";
+import path from "path";
+import session from "express-session";
 
-// 환경 변수 가져오기
+// 환경변수 로드
 dotenv.config();
 
 // 환경 변수 설정
 const PORT = process.env.PORT || 3000;
-const MONGO_URI =
-  process.env.MONGODB_URI || "mongodb://localhost:27017/one-page-db";
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/one-page";
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
+const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3000";
 
 // Express 앱 초기화
 const app = express();
-
 
 // 미들웨어 설정
 app.use(express.json());
@@ -34,29 +36,15 @@ app.use((req, res, next) => {
 });
 
 // CORS 설정
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      // 허용할 도메인 목록
-      const allowedOrigins = [CLIENT_URL];
-      
-      // origin이 없거나(개발 도구 등에서 직접 요청), 허용 목록에 있다면 허용
-      const allowNull = true; // null origin 허용 여부 (Postman 등 테스트 도구)
-      if (!origin || allowedOrigins.indexOf(origin) !== -1 || allowNull) {
-        callback(null, true);
-      } else {
-        callback(new Error(`Origin ${origin} not allowed by CORS`));
-      }
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+app.use(cors({
+  origin: CLIENT_URL,
+  credentials: true
+}));
 
 // Passport 설정
-const passport = configurePassport();
 app.use(passport.initialize());
+
+configurePassport();
 
 // 라우터 설정
 app.use("/api/auth", authRouter);
@@ -72,7 +60,7 @@ app.get("/", (req, res) => {
 const startServer = async () => {
   try {
     // MongoDB 연결
-    await mongoose.connect(MONGO_URI);
+    await mongoose.connect(MONGODB_URI);
     console.log("MongoDB 연결 성공!");
     
     // 기본 관리자 생성 (최초 실행 시)
@@ -91,7 +79,13 @@ const startServer = async () => {
 
     // 서버 시작
     app.listen(PORT, () => {
-      console.log(`서버가 ${PORT}번 포트에서 실행 중입니다.`);
+      console.log(`서버가 http://localhost:${PORT} 에서 실행 중입니다.`);
+      console.log("환경 변수:");
+      console.log("- PORT:", PORT);
+      console.log("- MONGODB_URI:", MONGODB_URI);
+      console.log("- CLIENT_URL:", CLIENT_URL);
+      console.log("- BACKEND_URL:", BACKEND_URL);
+      console.log("- NODE_ENV:", process.env.NODE_ENV);
       // 서버 실행 완료
     });
   } catch (error) {

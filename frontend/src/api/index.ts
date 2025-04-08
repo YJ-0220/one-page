@@ -2,8 +2,7 @@ import axios from "axios";
 import { setApiInstance } from "../utils/authUtils";
 
 // 환경변수에서 기본 URL 가져오기
-export const BASE_URL =
-  import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+export const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 export const API_URL = `${BASE_URL}/api`;
 
 // API 기본 설정

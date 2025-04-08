@@ -16,7 +16,7 @@ export interface JWTPayload {
 
 // AuthRequest 인터페이스 정의
 export interface AuthRequest extends Request {
-  user?: JWTPayload;
+  user?: IUserDocument;
   token?: string;
 }
 
@@ -69,7 +69,7 @@ export const optionalAuth = async (
     try {
       const { user, error } = await verifyToken(token);
       if (user) {
-        (req as AuthRequest).user = user;
+        (req as AuthRequest).user = user as IUserDocument;
         (req as AuthRequest).token = token;
       } else if (error) {
         if (error === "토큰이 만료되었습니다") {
@@ -105,7 +105,7 @@ export const requireAuth = async (
   const { user, error } = await verifyToken(token);
 
   if (user) {
-    (req as AuthRequest).user = user;
+    (req as AuthRequest).user = user as IUserDocument;
     (req as AuthRequest).token = token;
     next();
   } else {

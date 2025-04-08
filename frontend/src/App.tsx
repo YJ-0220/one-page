@@ -8,7 +8,7 @@ import ContactWidget from "@/components/ContactWidget";
 import { setupAxiosInterceptors } from "./utils/authUtils";
 import useAuth from "./hooks/useAuth";
 import axios from "axios";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import LoginSuccess from "./components/LoginSuccess";
 
 // axios 인터셉터 설정 (앱 시작 시 1회 실행)
@@ -22,45 +22,123 @@ if (token) {
 
 function App() {
   const [activePage, setActivePage] = useState<string>("home");
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // useAuth 훅 사용
   const { isAuthenticated, user, loading, logout, checkAuth } = useAuth();
 
   // 사용자 정보 추출
   const username = user?.displayName || null;
-  const isAdmin = user?.isAdmin || false;
+  const isAdmin = user?.role === 'admin' || false;
+
+  // URL 매개변수에서 토큰 확인
+  useEffect(() => {
+    const url = window.location.href;
+    const hasToken = url.includes("token=") || url.includes("accessToken=");
+
+    if (hasToken) {
+      console.log("URL에서 토큰 감지됨");
+      try {
+        // URL에서 토큰 추출
+        const urlObj = new URL(url);
+        const params = new URLSearchParams(
+          urlObj.hash.replace("#/", "?") || urlObj.search
+        );
+        const token = params.get("token") || params.get("accessToken");
+        const refresh = params.get("refresh") || params.get("refreshToken");
+        const user = params.get("user");
+
+        if (token) {
+          console.log("토큰 저장 및 상태 업데이트");
+          // 토큰 저장
+          localStorage.setItem("authToken", token);
+          if (refresh) localStorage.setItem("refreshToken", refresh);
+          if (user) localStorage.setItem("userName", user);
+
+          // API 헤더 설정
+          axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+          // 인증 상태 확인
+          checkAuth()
+            .then(() => {
+              // URL 파라미터 제거
+              if (window.history && window.history.replaceState) {
+                const cleanUrl = window.location.href
+                  .split("?")[0]
+                  .split("#")[0];
+                window.history.replaceState({}, document.title, cleanUrl);
+              }
+              // 홈으로 리다이렉트
+              navigate("/");
+            })
+            .catch((err) => {
+              console.error("인증 상태 확인 실패:", err);
+            });
+        }
+      } catch (err) {
+        console.error("URL 파라미터 처리 오류:", err);
+      }
+    }
+  }, [checkAuth, navigate]);
+
+  // 전역 이벤트 리스너로 소셜 로그인 메시지 수신 처리
+  useEffect(() => {
+    const handleLoginMessage = async (event: MessageEvent) => {
+      // 소셜 로그인 성공 메시지 처리
+      if (event.data && event.data.type === "LOGIN_SUCCESS") {
+        const { accessToken, refreshToken, userName } = event.data;
+
+        if (accessToken) {
+          console.log("App: 소셜 로그인 메시지 수신됨");
+          // 토큰 저장
+          localStorage.setItem("authToken", accessToken);
+          if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
+          if (userName) localStorage.setItem("userName", userName);
+
+          // API 헤더 설정
+          axios.defaults.headers.common[
+            "Authorization"
+          ] = `Bearer ${accessToken}`;
+
+          // 인증 상태 업데이트
+          try {
+            await checkAuth();
+            setActivePage("home");
+            console.log("App: 인증 상태 업데이트 성공");
+          } catch (error) {
+            console.error("App: 인증 상태 업데이트 실패", error);
+          }
+        }
+      }
+    };
+
+    // 이벤트 리스너 등록
+    window.addEventListener("message", handleLoginMessage);
+
+    return () => {
+      window.removeEventListener("message", handleLoginMessage);
+    };
+  }, [checkAuth]);
 
   // 로그인 핸들러 함수
   const handleLogin = useCallback(
-    (_userName: string) => {
+    async (_userName: string) => {
       setActivePage("home");
-      checkAuth().catch(() => {});
+      try {
+        // 인증 상태 확인 (더 확실한 처리를 위해 async/await 사용)
+        const authStatus = await checkAuth();
+
+        // 인증 상태가 false인 경우 즉시 다시 시도 
+        if (!authStatus) {
+          const retryStatus = await checkAuth();
+        }
+      } catch (error) {
+        console.error("로그인 후 인증 상태 확인 오류:", error);
+      }
     },
     [checkAuth, setActivePage]
   );
-
-  // URL 쿼리 파라미터 처리 (이제 이 기능은 LoginSuccess 컴포넌트로 이동)
-  useEffect(() => {
-    // URL에 토큰이 있는 경우에도 처리 (이전 방식과의 호환성)
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
-
-    if (token) {
-      // 토큰 저장 및 URL 정리
-      localStorage.setItem("authToken", token);
-      if (params.get("refresh"))
-        localStorage.setItem("refreshToken", params.get("refresh") || "");
-      if (params.get("user"))
-        localStorage.setItem("userName", params.get("user") || "");
-
-      // API 헤더 설정
-      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-
-      // URL 정리 및 인증 상태 확인
-      window.history.replaceState({}, document.title, window.location.pathname);
-      checkAuth().catch(() => {});
-    }
-  }, [checkAuth]);
 
   // 로그아웃 핸들러
   const handleLogout = () => {
@@ -76,27 +154,27 @@ function App() {
   return (
     <div className="app">
       <Header
-        username={username}
+        username={user?.displayName || null}
+        email={user?.email || null}
+        photoURL={user?.photoURL || null}
+        onLogin={() => navigate('/login')}
         onLogout={handleLogout}
         activePage={activePage}
         setActivePage={setActivePage}
         isAdmin={isAdmin}
         userId={user?._id || null}
-        onLogin={handleLogin}
       />
-      <main className="main-content">
+      <main className="main-content pt-20">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/login-success" element={<LoginSuccess />} />
+          <Route path="/auth/callback" element={<LoginSuccess />} />
           <Route
             path="/admin"
             element={
               isAuthenticated ? (
-                <AdminPage
-                  onLogin={handleLogin}
-                  isLoggedIn={isAuthenticated}
-                />
+                <AdminPage onLogin={handleLogin} isLoggedIn={isAuthenticated} />
               ) : (
                 <Navigate to="/login" />
               )

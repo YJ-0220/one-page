@@ -1,7 +1,8 @@
 import express from "express";
 import passport from "passport";
+import jwt from "jsonwebtoken";
 import User from "../models/User";
-import dotenv from "dotenv";
+import bcrypt from "bcryptjs";
 import axios from "axios";
 import {
   requireAuth,
@@ -13,13 +14,15 @@ import {
   AuthRequest,
 } from "../middleware/authMiddleware";
 
-// 환경변수 가져오기
-dotenv.config();
-
 // 환경변수 설정
 const router = express.Router();
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3000";
+
+// 소셜 로그인 콜백 URL 설정
+const GOOGLE_CALLBACK_URL = `${BACKEND_URL}/api/auth/google/callback`;
+const LINE_CALLBACK_URL = `${BACKEND_URL}/api/auth/line/callback`;
+const KAKAO_CALLBACK_URL = `${BACKEND_URL}/api/auth/kakao/callback`;
 
 // ===== JWT 인증 관련 엔드포인트 =====
 
@@ -106,73 +109,198 @@ router.get("/status", requireAuth, async (req, res) => {
 
 // ===== 소셜 로그인 관련 엔드포인트 =====
 
-// 팝업 응답 함수 대신 리다이렉트 방식 사용
+// 소셜 로그인 성공 처리 함수를 수정
 const handleLoginSuccess = (
-  req: any, 
-  res: any, 
-  accessToken: string, 
-  refreshToken: string, 
+  req: any,
+  res: any,
+  accessToken: string,
+  refreshToken: string,
   userName: string
 ) => {
-  // 토큰 정보와 함께 프론트엔드로 리다이렉트 (HashRouter 사용)
-  const redirectUrl = `${CLIENT_URL}/#/login-success?token=${accessToken}&refresh=${refreshToken}&user=${encodeURIComponent(userName)}`;
-  res.redirect(redirectUrl);
+  // 팝업 창에 메시지 전달
+  const html = `
+    <html>
+      <body>
+        <script>
+          window.opener.postMessage({
+            type: "LOGIN_SUCCESS",
+            accessToken: "${accessToken}",
+            refreshToken: "${refreshToken}",
+            userName: "${userName}"
+          }, "*");
+          window.close();
+        </script>
+        <p>로그인 성공! 이 창은 자동으로 닫힙니다.</p>
+      </body>
+    </html>
+  `;
+
+  res.send(html);
 };
 
 // 소셜 로그인 엔드포인트 (Passport 유지)
-router.get(
-  "/google",
-  passport.authenticate("google", {
-    scope: ["profile", "email"],
-    prompt: "select_account",
-  })
-);
+router.get("/google", (req, res, next) => {
+  const callbackUrl = req.query.callback_url as string;
+  if (callbackUrl) {
+    // 콜백 URL을 쿼리 파라미터로 전달
+    passport.authenticate("google", {
+      scope: ["profile", "email"],
+      prompt: "select_account",
+      state: callbackUrl, // state 파라미터로 콜백 URL 전달
+    })(req, res, next);
+  } else {
+    passport.authenticate("google", {
+      scope: ["profile", "email"],
+      prompt: "select_account",
+    })(req, res, next);
+  }
+});
 
-router.get("/line", passport.authenticate("line"));
+router.get("/line", (req, res, next) => {
+  console.log("LINE 로그인 요청 시작");
+  console.log("쿼리 파라미터:", req.query);
+  
+  const callbackUrl = req.query.callback_url as string;
+  if (callbackUrl) {
+    console.log("콜백 URL 설정:", callbackUrl);
+  }
+
+  passport.authenticate("line", {
+    session: false,
+    state: callbackUrl // state 파라미터로 콜백 URL 전달
+  })(req, res, next);
+});
 
 router.get("/kakao", (req, res) => {
   const kakaoAuthURL = "https://kauth.kakao.com/oauth/authorize";
-  const redirect_uri = `${BACKEND_URL}/api/auth/kakao/callback`;
+  const callbackUrl = req.query.callback_url as string;
+  const redirect_uri = callbackUrl || `${BACKEND_URL}/api/auth/kakao/callback`;
+
   res.redirect(
-    `${kakaoAuthURL}?client_id=${process.env.KAKAO_CLIENT_ID}&redirect_uri=${redirect_uri}&response_type=code`
+    `${kakaoAuthURL}?client_id=${process.env.KAKAO_CLIENT_ID}&redirect_uri=${redirect_uri}&response_type=code&state=${encodeURIComponent(callbackUrl || '')}`
   );
 });
 
 // 소셜 로그인 콜백 (passport 유지지만 세션 대신 JWT 토큰 사용)
 router.get(
   "/google/callback",
-  passport.authenticate("google", {
-    failureRedirect: `${CLIENT_URL}/login?error=google-login-failed`,
-    session: false,
-  }),
-  (req, res) => {
-    const user = req.user as any;
-    const { accessToken, refreshToken } = generateTokens(user);
-    const userName = user.displayName || user.email || "사용자";
+  passport.authenticate("google", { session: false }),
+  async (req, res) => {
+    try {
+      if (!req.user) {
+        // state 파라미터에서 콜백 URL 가져오기
+        const callbackUrl = req.query.state as string;
+        return res.redirect(`${callbackUrl || CLIENT_URL}/#/login?error=인증 실패`);
+      }
 
-    // 팝업 응답 대신 리다이렉트 사용
-    handleLoginSuccess(req, res, accessToken, refreshToken, userName);
+      const user = req.user as any;
+      const { accessToken, refreshToken } = generateTokens(user);
+
+      // state 파라미터에서 콜백 URL 가져오기
+      const callbackUrl = req.query.state as string;
+      if (callbackUrl) {
+        return res.redirect(`${callbackUrl}?accessToken=${accessToken}&refreshToken=${refreshToken}`);
+      }
+
+      // 팝업 창에 메시지 전달
+      const html = `
+        <html>
+          <body>
+            <script>
+              window.opener.postMessage({
+                type: "LOGIN_SUCCESS",
+                accessToken: "${accessToken}",
+                refreshToken: "${refreshToken}",
+                user: {
+                  _id: "${user._id}",
+                  displayName: "${user.displayName}",
+                  email: "${user.email}",
+                  isAdmin: ${user.isAdmin}
+                }
+              }, "*");
+              window.close();
+            </script>
+            <p>로그인 성공! 이 창은 자동으로 닫힙니다.</p>
+          </body>
+        </html>
+      `;
+
+      res.send(html);
+    } catch (error) {
+      console.error("Google 로그인 콜백 에러:", error);
+      const callbackUrl = req.query.state as string;
+      res.redirect(`${callbackUrl || CLIENT_URL}/#/login?error=서버 오류`);
+    }
   }
 );
 
 router.get(
   "/line/callback",
-  passport.authenticate("line", {
-    failureRedirect: `${CLIENT_URL}/login?error=line-login-failed`,
-    session: false,
-  }),
+  (req, res, next) => {
+    console.log("LINE 콜백 시작");
+    console.log("쿼리 파라미터:", req.query);
+    
+    passport.authenticate("line", { 
+      session: false,
+      failWithError: true 
+    })(req, res, next);
+  },
   (req, res) => {
-    const user = req.user as any;
-    const { accessToken, refreshToken } = generateTokens(user);
-    const userName = user.displayName || "사용자";
+    try {
+      console.log("LINE 콜백 처리 시작");
+      console.log("사용자 정보:", req.user);
+      
+      if (!req.user) {
+        console.error("LINE 로그인 실패: 사용자 정보 없음");
+        const callbackUrl = req.query.state as string;
+        return res.redirect(`${callbackUrl || CLIENT_URL}/#/login?error=인증 실패`);
+      }
 
-    handleLoginSuccess(req, res, accessToken, refreshToken, userName);
+      const user = req.user as any;
+      const { accessToken, refreshToken } = generateTokens(user);
+      console.log("토큰 생성 완료");
+
+      const callbackUrl = req.query.state as string;
+      if (callbackUrl) {
+        console.log("콜백 URL로 리다이렉트:", callbackUrl);
+        return res.redirect(`${callbackUrl}?accessToken=${accessToken}&refreshToken=${refreshToken}`);
+      }
+
+      console.log("팝업 창에 메시지 전달");
+      const html = `
+        <html>
+          <body>
+            <script>
+              window.opener.postMessage({
+                type: "LOGIN_SUCCESS",
+                accessToken: "${accessToken}",
+                refreshToken: "${refreshToken}",
+                user: {
+                  _id: "${user._id}",
+                  displayName: "${user.displayName}",
+                  email: "${user.email}",
+                  isAdmin: ${user.isAdmin}
+                }
+              }, "*");
+              window.close();
+            </script>
+            <p>로그인 성공! 이 창은 자동으로 닫힙니다.</p>
+          </body>
+        </html>
+      `;
+
+      res.send(html);
+    } catch (error) {
+      console.error("LINE 로그인 콜백 에러:", error);
+      const callbackUrl = req.query.state as string;
+      res.redirect(`${callbackUrl || CLIENT_URL}/#/login?error=서버 오류`);
+    }
   }
 );
 
 router.get("/kakao/callback", async (req, res) => {
   try {
-    const { code } = req.query;
+    const { code, state } = req.query;
     const kakaoTokenURL = "https://kauth.kakao.com/oauth/token";
     const redirect_uri = `${BACKEND_URL}/api/auth/kakao/callback`;
 
@@ -233,12 +361,41 @@ router.get("/kakao/callback", async (req, res) => {
     }
 
     const { accessToken, refreshToken } = generateTokens(user);
-    const userName = user.displayName || "사용자";
 
-    // 리다이렉트 방식으로 변경
-    handleLoginSuccess(req, res, accessToken, refreshToken, userName);
+    // 콜백 URL이 있는 경우 리다이렉트
+    const callbackUrl = state as string;
+    if (callbackUrl) {
+      return res.redirect(`${callbackUrl}?accessToken=${accessToken}&refreshToken=${refreshToken}`);
+    }
+
+    // 팝업 창에 메시지 전달
+    const html = `
+      <html>
+        <body>
+          <script>
+            window.opener.postMessage({
+              type: "LOGIN_SUCCESS",
+              accessToken: "${accessToken}",
+              refreshToken: "${refreshToken}",
+              user: {
+                _id: "${user._id}",
+                displayName: "${user.displayName}",
+                email: "${user.email}",
+                isAdmin: ${user.isAdmin}
+              }
+            }, "*");
+            window.close();
+          </script>
+          <p>로그인 성공! 이 창은 자동으로 닫힙니다.</p>
+        </body>
+      </html>
+    `;
+
+    res.send(html);
   } catch (error) {
-    res.redirect(`${CLIENT_URL}/login?error=kakao-login-failed`);
+    console.error("Kakao 로그인 콜백 에러:", error);
+    const callbackUrl = req.query.state as string;
+    res.redirect(`${callbackUrl || CLIENT_URL}/#/login?error=서버 오류`);
   }
 });
 

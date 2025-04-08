@@ -1,9 +1,14 @@
+import { useNavigate, useLocation } from 'react-router-dom';
+
 interface NavbarProps {
   activePage: string;
   setActivePage: (page: string) => void;
 }
 
 const Navbar = ({ activePage, setActivePage }: NavbarProps) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
   const navItems = [
     { id: 'home', name: '홈' },
     { id: 'about', name: '소개' },
@@ -13,6 +18,21 @@ const Navbar = ({ activePage, setActivePage }: NavbarProps) => {
 
   const scrollToSection = (sectionId: string) => {
     setActivePage(sectionId);
+    
+    // 현재 로그인 페이지에 있다면 홈페이지로 이동
+    if (location.pathname !== '/') {
+      navigate('/');
+      // 홈페이지로 이동 후 스크롤이 필요할 경우 약간의 지연을 줌
+      setTimeout(() => {
+        const element = document.getElementById(sectionId);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+      return;
+    }
+    
+    // 이미 홈페이지에 있으면 바로 스크롤
     const element = document.getElementById(sectionId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });

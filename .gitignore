@@ -23,6 +23,13 @@ dist-ssr
 *.sln
 *.sw?
 
-# 백엔드 파일을 만들었으면 당연히 경로도 backend 폴더를 적었어야지;;
-# backend/.env
+# Environment variables
 .env
+.env.local
+.env.development
+.env.production
+backend/.env
+backend/.env.development
+backend/.env.production
+backend/.env.local
+frontend/.env

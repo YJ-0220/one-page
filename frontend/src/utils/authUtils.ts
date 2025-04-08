@@ -77,7 +77,7 @@ export const decodeToken = (token: string): any => {
   }
 };
 
-// axios 인터셉터 설정
+// 토큰 갱신 URL 수정
 export const setupAxiosInterceptors = (): void => {
   // 요청 인터셉터
   axios.interceptors.request.use(
@@ -99,7 +99,6 @@ export const setupAxiosInterceptors = (): void => {
       
       // 토큰 만료로 401 에러가 발생한 경우
       if (error.response?.status === 401 && 
-          error.response?.data?.code === 'TOKEN_EXPIRED' && 
           !originalRequest._retry) {
         
         originalRequest._retry = true;
@@ -111,21 +110,27 @@ export const setupAxiosInterceptors = (): void => {
             throw new Error('리프레시 토큰이 없습니다');
           }
           
+          // 올바른 URL 경로 사용
           const response = await axios.post(`${API_URL}/auth/refresh-token`, {
             refreshToken
           });
           
           const { accessToken } = response.data;
-          setAuthToken(accessToken);
-          
-          // 실패했던 요청 재시도
-          return axios(originalRequest);
+          if (accessToken) {
+            setAuthToken(accessToken);
+            
+            // 실패했던 요청 재시도
+            return axios(originalRequest);
+          } else {
+            throw new Error('새 액세스 토큰을 받지 못했습니다');
+          }
         } catch (refreshError) {
           // 로그아웃 처리
           removeAuthToken();
+          
           if (!window.location.pathname.includes('/login')) {
             alert('로그인이 만료되었습니다. 다시 로그인해주세요.');
-            window.location.href = '/';
+            window.location.reload();
           }
           return Promise.reject(refreshError);
         }

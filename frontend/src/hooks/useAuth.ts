@@ -1,14 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { userLogin, userLogout, checkAuthStatus } from '../api';
 import { setAuthToken, getAuthToken, removeAuthToken } from '../utils/authUtils';
-
-interface AuthUser {
-  _id?: string;
-  displayName: string;
-  email: string;
-  isAdmin: boolean;
-  photo?: string;
-}
+import { AuthUser } from '../types/auth';
 
 // 인증 훅
 export default function useAuth() {
@@ -22,10 +15,12 @@ export default function useAuth() {
     setIsAuthenticated(true);
     setUser({
       _id: userData._id,
-      displayName: userData.displayName || userData.email,
+      displayName: userData.displayName || userData.email || '사용자',
       email: userData.email,
-      isAdmin: userData.isAdmin || false,
-      photo: userData.photo
+      photoURL: userData.photo || null,
+      role: userData.isAdmin ? 'admin' : 'user',
+      createdAt: userData.createdAt || new Date().toISOString(),
+      updatedAt: userData.updatedAt || new Date().toISOString()
     });
   }, []);
 
