@@ -6,6 +6,9 @@ import { Strategy as KakaoStrategy } from 'passport-kakao';
 import User, { IUserDocument } from '../models/User';
 import crypto from 'crypto';
 import { Request } from 'express';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Passport 타입 정의
 declare global {
@@ -211,6 +214,8 @@ export const configurePassport = () => {
       )
     );
   }
+
+  console.log("등록된 passport 전략 목록:", Object.keys((passport as any)._strategies));
 
   return passport;
 };

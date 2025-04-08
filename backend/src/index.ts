@@ -42,9 +42,8 @@ app.use(cors({
 }));
 
 // Passport 설정
-app.use(passport.initialize());
-
 configurePassport();
+app.use(passport.initialize());
 
 // 라우터 설정
 app.use("/api/auth", authRouter);
