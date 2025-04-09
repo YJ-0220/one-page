@@ -42,9 +42,11 @@ const LoginForm = ({
           // 로그인 콜백 호출
           onLogin(user.displayName);
           onClose();
-
-          // 페이지 새로고침
-          window.location.reload();
+          
+          // 로그인 성공 후 페이지 새로고침 (약간의 지연 추가)
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
         }
       }
     };
@@ -80,7 +82,7 @@ const LoginForm = ({
       onLogin(userName);
       onClose();
       
-      // 인증 상태를 확실히 반영하기 위해 즉시 페이지 새로고침
+      // 인증 상태를 확실히 반영하기 위해 페이지 새로고침
       window.location.reload();
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.data?.error) {
@@ -94,35 +96,32 @@ const LoginForm = ({
   };
 
   // 소셜 로그인 함수
-  const handleSocialLogin = async (provider: string) => {
-    try {
-      const baseUrl = import.meta.env.VITE_API_URL;
-      if (!baseUrl) {
-        throw new Error("API URL이 설정되지 않았습니다.");
-      }
+  const handleSocialLogin = (provider: string) => {
+    const baseUrl = import.meta.env.VITE_API_URL;
+    if (!baseUrl) {
+      alert("백엔드 URL이 설정되지 않았습니다.");
+      return;
+    }
 
-      const callbackUrl = `${window.location.origin}${window.location.pathname}#/auth/callback`;
-      const url = `${baseUrl}/api/auth/${provider}?callback_url=${encodeURIComponent(callbackUrl)}`;
-      
-      const popup = window.open(
-        url,
-        `${provider} 로그인`,
-        "width=500,height=600,left=50%,top=50%,transform=translate(-50%, -50%)"
-      );
+    // 팝업창 설정
+    const width = 500;
+    const height = 600;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
 
-      if (!popup) {
-        throw new Error("팝업이 차단되었습니다. 팝업 차단을 해제해주세요.");
-      }
+    // 콜백 URL 설정
+    const callbackUrl = `${window.location.origin}${window.location.pathname}#/auth/callback`;
 
-      popup.focus();
+    // 팝업창 열기
+    const popup = window.open(
+      `${baseUrl}/api/auth/${provider}?callback_url=${encodeURIComponent(callbackUrl)}`,
+      "소셜 로그인",
+      `width=${width},height=${height},left=${left},top=${top}`
+    );
 
-      // 모달 모드인 경우 콜백 호출
-      if (modalMode && onSocialLoginClick) {
-        onSocialLoginClick();
-      }
-    } catch (error) {
-      console.error("소셜 로그인 팝업 열기 실패:", error);
-      setError("소셜 로그인 창을 열 수 없습니다. 브라우저 설정을 확인해주세요.");
+    if (!popup) {
+      alert("팝업이 차단되었습니다. 팝업 차단을 해제해주세요.");
+      return;
     }
   };
 

@@ -157,17 +157,11 @@ router.get("/google", (req, res, next) => {
 });
 
 router.get("/line", (req, res, next) => {
-  console.log("LINE 로그인 요청 시작");
-  console.log("쿼리 파라미터:", req.query);
-  
   const callbackUrl = req.query.callback_url as string;
-  if (callbackUrl) {
-    console.log("콜백 URL 설정:", callbackUrl);
-  }
-
+  
   passport.authenticate("line", {
     session: false,
-    state: callbackUrl // state 파라미터로 콜백 URL 전달
+    state: false // state 파라미터 사용 안 함
   })(req, res, next);
 });
 
@@ -237,9 +231,6 @@ router.get(
 router.get(
   "/line/callback",
   (req, res, next) => {
-    console.log("LINE 콜백 시작");
-    console.log("쿼리 파라미터:", req.query);
-    
     passport.authenticate("line", { 
       session: false,
       failWithError: true 
@@ -247,26 +238,15 @@ router.get(
   },
   (req, res) => {
     try {
-      console.log("LINE 콜백 처리 시작");
-      console.log("사용자 정보:", req.user);
-      
       if (!req.user) {
         console.error("LINE 로그인 실패: 사용자 정보 없음");
-        const callbackUrl = req.query.state as string;
-        return res.redirect(`${callbackUrl || CLIENT_URL}/#/login?error=인증 실패`);
+        return res.redirect(`${CLIENT_URL}/#/login?error=인증 실패`);
       }
 
       const user = req.user as any;
       const { accessToken, refreshToken } = generateTokens(user);
-      console.log("토큰 생성 완료");
 
-      const callbackUrl = req.query.state as string;
-      if (callbackUrl) {
-        console.log("콜백 URL로 리다이렉트:", callbackUrl);
-        return res.redirect(`${callbackUrl}?accessToken=${accessToken}&refreshToken=${refreshToken}`);
-      }
-
-      console.log("팝업 창에 메시지 전달");
+      // 팝업 창에 메시지 전달
       const html = `
         <html>
           <body>
@@ -292,8 +272,7 @@ router.get(
       res.send(html);
     } catch (error) {
       console.error("LINE 로그인 콜백 에러:", error);
-      const callbackUrl = req.query.state as string;
-      res.redirect(`${callbackUrl || CLIENT_URL}/#/login?error=서버 오류`);
+      res.redirect(`${CLIENT_URL}/#/login?error=서버 오류`);
     }
   }
 );

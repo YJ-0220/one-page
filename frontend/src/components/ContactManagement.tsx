@@ -157,8 +157,8 @@ const ContactManagement = () => {
             </svg>
             문의가 없습니다.
           </div>
-        </div>
-      ) : (
+              </div>
+            ) : (
         <div className="bg-white rounded-lg shadow-sm overflow-hidden w-full">
           <div className="overflow-x-auto w-full">
             <table className="w-full table-fixed divide-y divide-gray-200">
@@ -218,7 +218,7 @@ const ContactManagement = () => {
                 ))}
               </tbody>
             </table>
-          </div>
+              </div>
           <div className="bg-gray-50 px-6 py-3 border-t border-gray-200 text-sm text-gray-500">
             총 {contacts.length}건의 문의가 있습니다
           </div>
@@ -238,7 +238,7 @@ const ContactManagement = () => {
                   )}
                 </h3>
                 <p className="text-sm text-gray-600">{selectedContact.email}</p>
-              </div>
+                </div>
               <button 
                 onClick={closeModal}
                 className="text-gray-500 hover:text-gray-700"
@@ -247,13 +247,13 @@ const ContactManagement = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-            </div>
+                </div>
             <div className="px-6 py-4 flex-1 overflow-y-auto">
               <div className="mb-4">
                 <div className="flex justify-between items-center">
                   <div className="text-sm text-gray-500">
                     작성일: {new Date(selectedContact.createdAt).toLocaleString()}
-                  </div>
+                </div>
                   <div>
                     {selectedContact.isRead ? (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -273,7 +273,7 @@ const ContactManagement = () => {
                   {selectedContact.message}
                 </div>
               </div>
-            </div>
+              </div>
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-2 bg-gray-50">
               {!selectedContact.isRead && (
                 <button

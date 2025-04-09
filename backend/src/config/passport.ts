@@ -90,42 +90,29 @@ export const configurePassport = () => {
   }
 
   // LINE 전략 설정
-  if (!process.env.LINE_CLIENT_ID || !process.env.LINE_CLIENT_SECRET) {
+  if (!process.env.LINE_CHANNEL_ID || !process.env.LINE_CHANNEL_SECRET) {
     console.warn("LINE OAuth credentials are not set");
   } else {
-    console.log("LINE 전략 설정 시작");
-    console.log("LINE_CLIENT_ID:", process.env.LINE_CLIENT_ID);
-    console.log("LINE_CLIENT_SECRET:", process.env.LINE_CLIENT_SECRET);
-    console.log("콜백 URL:", `${BACKEND_URL}/api/auth/line/callback`);
-
     passport.use(
       "line",
       new LineStrategy(
         {
-          channelID: process.env.LINE_CLIENT_ID,
-          channelSecret: process.env.LINE_CLIENT_SECRET,
+          channelID: process.env.LINE_CHANNEL_ID,
+          channelSecret: process.env.LINE_CHANNEL_SECRET,
           callbackURL: `${BACKEND_URL}/api/auth/line/callback`,
           passReqToCallback: true,
-          scope: "profile openid email",
+          scope: "profile",
         },
         async (req: Request, accessToken: string, refreshToken: string, profile: any, done: any) => {
           try {
-            console.log("LINE 로그인 시도 - 프로필:", profile);
-            console.log("LINE 로그인 시도 - 액세스 토큰:", accessToken);
+            // LINE ID를 기반으로 이메일 생성
+            const email = `line_${profile.id}@line.user`;
             
-            const email = profile.emails?.[0]?.value;
-            if (!email) {
-              console.error("LINE 로그인 실패: 이메일 정보 없음");
-              return done(new Error("이메일 정보를 찾을 수 없습니다."));
-            }
-
             let user = await User.findOne({
               $or: [{ email }, { lineId: profile.id }],
             });
-            console.log("기존 사용자 검색 결과:", user);
 
             if (!user) {
-              console.log("새 사용자 생성 시작");
               const randomPassword = crypto.randomBytes(20).toString("hex");
               user = await User.create({
                 email,
@@ -135,18 +122,14 @@ export const configurePassport = () => {
                 isAdmin: false,
                 lineId: profile.id,
               });
-              console.log("새 사용자 생성 완료:", user);
             } else if (!user.lineId) {
-              console.log("기존 사용자 LINE ID 업데이트 시작");
               user = await User.findByIdAndUpdate(
                 user._id,
                 { lineId: profile.id },
                 { new: true }
               );
-              console.log("기존 사용자 LINE ID 업데이트 완료:", user);
             }
 
-            console.log("LINE 로그인 성공:", user);
             return done(null, user);
           } catch (error) {
             console.error("LINE 로그인 처리 중 오류:", error);
@@ -155,7 +138,6 @@ export const configurePassport = () => {
         }
       )
     );
-    console.log("LINE 전략 설정 완료");
   }
 
   // Kakao 전략 설정

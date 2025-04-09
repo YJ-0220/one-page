@@ -132,9 +132,16 @@ function App() {
         // 인증 상태가 false인 경우 즉시 다시 시도 
         if (!authStatus) {
           const retryStatus = await checkAuth();
+          
+          // 여전히 실패하면 페이지 새로고침
+          if (!retryStatus) {
+            window.location.reload();
+          }
         }
       } catch (error) {
         console.error("로그인 후 인증 상태 확인 오류:", error);
+        // 오류 발생 시 페이지 새로고침
+        window.location.reload();
       }
     },
     [checkAuth, setActivePage]

@@ -1,7 +1,6 @@
 import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
-import passport from "passport";
 import mongoose from "mongoose";
 import { configurePassport } from "./config/passport";
 import authRouter from "./routes/authRouter";
@@ -28,6 +27,17 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// 세션 미들웨어 설정
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24시간
+  }
+}));
+
 // 크로스 도메인 설정
 app.use((req, res, next) => {
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups"); // 기존 same-origin을 변경
@@ -42,7 +52,7 @@ app.use(cors({
 }));
 
 // Passport 설정
-configurePassport();
+const passport = configurePassport();
 app.use(passport.initialize());
 
 // 라우터 설정

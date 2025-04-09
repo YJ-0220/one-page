@@ -24,8 +24,23 @@ const LoginSuccess = () => {
           // API 헤더 설정
           axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
 
-          // 홈으로 리다이렉트
-          navigate('/');
+          // 부모 창에 로그인 성공 메시지 전송
+          if (window.opener && !window.opener.closed) {
+            window.opener.postMessage({
+              type: 'LOGIN_SUCCESS',
+              accessToken,
+              refreshToken,
+              user: JSON.parse(localStorage.getItem('user') || '{}')
+            }, '*');
+            
+            // 메시지가 전달될 시간을 주기 위해 약간의 지연 추가
+            setTimeout(() => {
+              window.close();
+            }, 500);
+          } else {
+            // 부모 창이 없는 경우 바로 닫기
+            window.close();
+          }
         }
       } catch (error) {
         console.error('로그인 처리 중 오류 발생:', error);

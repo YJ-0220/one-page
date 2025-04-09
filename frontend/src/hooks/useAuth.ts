@@ -116,6 +116,9 @@ export default function useAuth() {
           });
         }
 
+        // 로컬 스토리지에 사용자 정보 저장 (추가)
+        localStorage.setItem('user', JSON.stringify(response.user));
+
         return true;
       } else {
         setIsAuthenticated(false);
@@ -123,6 +126,7 @@ export default function useAuth() {
         return false;
       }
     } catch (err) {
+      console.error('인증 상태 확인 오류:', err);
       setError('인증 상태 확인 오류');
       setIsAuthenticated(false);
       setUser(null);
