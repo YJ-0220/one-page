@@ -13,6 +13,15 @@ import {
   JWTPayload,
   AuthRequest,
 } from "../middleware/authMiddleware";
+import session from "express-session";
+import crypto from "crypto";
+
+// 세션 타입 확장
+declare module "express-session" {
+  interface SessionData {
+    callbackUrl?: string;
+  }
+}
 
 // 환경변수 설정
 const router = express.Router();
@@ -156,12 +165,19 @@ router.get("/google", (req, res, next) => {
   }
 });
 
+// LINE 로그인 엔드포인트
 router.get("/line", (req, res, next) => {
+  console.log("LINE 로그인 시도:", req.query);
   const callbackUrl = req.query.callback_url as string;
   
+  // state 파라미터 생성 및 로깅
+  const state = callbackUrl || crypto.randomBytes(16).toString('hex');
+  console.log("LINE 로그인 state 파라미터:", state);
+
+  // 세션 사용 없이 state 파라미터로만 처리
   passport.authenticate("line", {
-    session: false,
-    state: false // state 파라미터 사용 안 함
+    session: false, // 세션 사용 안 함
+    state: state, // state 파라미터로 콜백 URL 전달
   })(req, res, next);
 });
 
@@ -171,7 +187,11 @@ router.get("/kakao", (req, res) => {
   const redirect_uri = callbackUrl || `${BACKEND_URL}/api/auth/kakao/callback`;
 
   res.redirect(
-    `${kakaoAuthURL}?client_id=${process.env.KAKAO_CLIENT_ID}&redirect_uri=${redirect_uri}&response_type=code&state=${encodeURIComponent(callbackUrl || '')}`
+    `${kakaoAuthURL}?client_id=${
+      process.env.KAKAO_CLIENT_ID
+    }&redirect_uri=${redirect_uri}&response_type=code&state=${encodeURIComponent(
+      callbackUrl || ""
+    )}`
   );
 });
 
@@ -184,7 +204,9 @@ router.get(
       if (!req.user) {
         // state 파라미터에서 콜백 URL 가져오기
         const callbackUrl = req.query.state as string;
-        return res.redirect(`${callbackUrl || CLIENT_URL}/#/login?error=인증 실패`);
+        return res.redirect(
+          `${callbackUrl || CLIENT_URL}/#/login?error=인증 실패`
+        );
       }
 
       const user = req.user as any;
@@ -193,7 +215,9 @@ router.get(
       // state 파라미터에서 콜백 URL 가져오기
       const callbackUrl = req.query.state as string;
       if (callbackUrl) {
-        return res.redirect(`${callbackUrl}?accessToken=${accessToken}&refreshToken=${refreshToken}`);
+        return res.redirect(
+          `${callbackUrl}?accessToken=${accessToken}&refreshToken=${refreshToken}`
+        );
       }
 
       // 팝업 창에 메시지 전달
@@ -231,9 +255,16 @@ router.get(
 router.get(
   "/line/callback",
   (req, res, next) => {
-    passport.authenticate("line", { 
+    console.log("LINE 콜백 수신:", req.query);
+    
+    // state 파라미터 처리 개선
+    const state = req.query.state as string;
+    console.log("LINE 콜백 state 파라미터:", state);
+    
+    passport.authenticate("line", {
       session: false,
-      failWithError: true 
+      failWithError: false,
+      state: state // state 파라미터 명시적 전달
     })(req, res, next);
   },
   (req, res) => {
@@ -245,6 +276,16 @@ router.get(
 
       const user = req.user as any;
       const { accessToken, refreshToken } = generateTokens(user);
+
+      // state 파라미터에서 콜백 URL 가져오기
+      const callbackUrl = req.query.state as string;
+      console.log("LINE 콜백 처리 후 콜백 URL:", callbackUrl);
+      
+      if (callbackUrl) {
+        return res.redirect(
+          `${callbackUrl}?accessToken=${accessToken}&refreshToken=${refreshToken}`
+        );
+      }
 
       // 팝업 창에 메시지 전달
       const html = `
@@ -344,7 +385,9 @@ router.get("/kakao/callback", async (req, res) => {
     // 콜백 URL이 있는 경우 리다이렉트
     const callbackUrl = state as string;
     if (callbackUrl) {
-      return res.redirect(`${callbackUrl}?accessToken=${accessToken}&refreshToken=${refreshToken}`);
+      return res.redirect(
+        `${callbackUrl}?accessToken=${accessToken}&refreshToken=${refreshToken}`
+      );
     }
 
     // 팝업 창에 메시지 전달

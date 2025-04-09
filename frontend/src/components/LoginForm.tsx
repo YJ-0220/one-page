@@ -25,8 +25,14 @@ const LoginForm = ({
   // 소셜 로그인 메시지 수신을 위한 이벤트 리스너
   useEffect(() => {
     const handleSocialLoginMessage = (event: MessageEvent) => {
+      // 디버깅을 위한 콘솔 로그 추가
+      console.log('소셜 로그인 메시지 수신:', event.data);
+      
       if (event.data && event.data.type === "LOGIN_SUCCESS") {
         const { accessToken, refreshToken, user } = event.data;
+        
+        // 로그인 성공 데이터 디버깅
+        console.log('로그인 성공 데이터:', { accessToken, refreshToken, user });
 
         if (accessToken && user) {
           // 토큰 저장
@@ -47,6 +53,8 @@ const LoginForm = ({
           setTimeout(() => {
             window.location.reload();
           }, 1000);
+        } else {
+          console.error('액세스 토큰 또는 사용자 정보가 없습니다.');
         }
       }
     };
@@ -95,46 +103,89 @@ const LoginForm = ({
     }
   };
 
-  // 소셜 로그인 함수
-  const handleSocialLogin = (provider: string) => {
-    const baseUrl = import.meta.env.VITE_API_URL;
-    if (!baseUrl) {
-      alert("백엔드 URL이 설정되지 않았습니다.");
-      return;
-    }
-
-    // 팝업창 설정
+  // 공통 팝업창 설정 함수
+  const openPopup = (url: string) => {
     const width = 500;
     const height = 600;
     const left = window.screenX + (window.outerWidth - width) / 2;
     const top = window.screenY + (window.outerHeight - height) / 2;
 
-    // 콜백 URL 설정
-    const callbackUrl = `${window.location.origin}${window.location.pathname}#/auth/callback`;
-
-    // 팝업창 열기
     const popup = window.open(
-      `${baseUrl}/api/auth/${provider}?callback_url=${encodeURIComponent(callbackUrl)}`,
+      url,
       "소셜 로그인",
       `width=${width},height=${height},left=${left},top=${top}`
     );
 
     if (!popup) {
       alert("팝업이 차단되었습니다. 팝업 차단을 해제해주세요.");
+      return false;
+    }
+    return true;
+  };
+
+  // Google 로그인 처리
+  const handleGoogleLogin = () => {
+    const baseUrl = import.meta.env.VITE_API_URL;
+    if (!baseUrl) {
+      alert("백엔드 URL이 설정되지 않았습니다.");
       return;
+    }
+
+    const callbackUrl = `${window.location.origin}${window.location.pathname}#/auth/callback`;
+    const url = `${baseUrl}/api/auth/google?callback_url=${encodeURIComponent(callbackUrl)}`;
+    
+    console.log('Google 로그인 시도:', {
+      baseUrl,
+      callbackUrl,
+      finalUrl: url
+    });
+
+    openPopup(url);
+  };
+
+  // LINE 로그인 처리
+  const handleLineLogin = () => {
+    const baseUrl = import.meta.env.VITE_API_URL;
+    if (!baseUrl) {
+      alert("백엔드 URL이 설정되지 않았습니다.");
+      return;
+    }
+
+    const callbackUrl = `${window.location.origin}${window.location.pathname}#/auth/callback`;
+    const url = `${baseUrl}/api/auth/line?callback_url=${encodeURIComponent(callbackUrl)}`;
+    
+    console.log('LINE 로그인 시도:', {
+      baseUrl,
+      callbackUrl,
+      finalUrl: url,
+      env: import.meta.env
+    });
+
+    if (openPopup(url)) {
+      console.log('LINE 로그인 팝업이 성공적으로 열렸습니다.');
+    } else {
+      console.error('LINE 로그인 팝업 열기 실패');
     }
   };
 
-  const handleGoogleLogin = () => {
-    handleSocialLogin("google");
-  };
-
+  // Kakao 로그인 처리
   const handleKakaoLogin = () => {
-    handleSocialLogin("kakao");
-  };
+    const baseUrl = import.meta.env.VITE_API_URL;
+    if (!baseUrl) {
+      alert("백엔드 URL이 설정되지 않았습니다.");
+      return;
+    }
 
-  const handleLineLogin = () => {
-    handleSocialLogin("line");
+    const callbackUrl = `${window.location.origin}${window.location.pathname}#/auth/callback`;
+    const url = `${baseUrl}/api/auth/kakao?callback_url=${encodeURIComponent(callbackUrl)}`;
+    
+    console.log('Kakao 로그인 시도:', {
+      baseUrl,
+      callbackUrl,
+      finalUrl: url
+    });
+
+    openPopup(url);
   };
 
   return (

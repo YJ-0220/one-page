@@ -33,8 +33,8 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000 // 24시간
+    secure: false,
+    sameSite: 'none',
   }
 }));
 
@@ -54,6 +54,7 @@ app.use(cors({
 // Passport 설정
 const passport = configurePassport();
 app.use(passport.initialize());
+app.use(passport.session());
 
 // 라우터 설정
 app.use("/api/auth", authRouter);
@@ -91,11 +92,8 @@ const startServer = async () => {
       console.log(`서버가 http://localhost:${PORT} 에서 실행 중입니다.`);
       console.log("환경 변수:");
       console.log("- PORT:", PORT);
-      console.log("- MONGODB_URI:", MONGODB_URI);
       console.log("- CLIENT_URL:", CLIENT_URL);
       console.log("- BACKEND_URL:", BACKEND_URL);
-      console.log("- NODE_ENV:", process.env.NODE_ENV);
-      // 서버 실행 완료
     });
   } catch (error) {
     process.exit(1);

@@ -6,9 +6,6 @@ import { Strategy as KakaoStrategy } from 'passport-kakao';
 import User, { IUserDocument } from '../models/User';
 import crypto from 'crypto';
 import { Request } from 'express';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 // Passport 타입 정의
 declare global {
@@ -101,10 +98,14 @@ export const configurePassport = () => {
           channelSecret: process.env.LINE_CHANNEL_SECRET,
           callbackURL: `${BACKEND_URL}/api/auth/line/callback`,
           passReqToCallback: true,
-          scope: "profile",
+          scope: "profile openid email",
+          state: true,
         },
         async (req: Request, accessToken: string, refreshToken: string, profile: any, done: any) => {
           try {
+            console.log("LINE 로그인 시도:", profile.id);
+            console.log("LINE 프로필 정보:", profile);
+            
             // LINE ID를 기반으로 이메일 생성
             const email = `line_${profile.id}@line.user`;
             

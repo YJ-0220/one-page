@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "passport-line-auth": "^0.2.9"
+  }
+}
