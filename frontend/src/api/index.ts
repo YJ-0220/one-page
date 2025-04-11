@@ -3,7 +3,7 @@ import { setApiInstance } from "../utils/authUtils";
 
 // 환경변수에서 기본 URL 가져오기
 export const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
-export const API_URL = `${BASE_URL}/api`;
+export const API_URL = BASE_URL;
 
 // API 기본 설정
 const api = axios.create({
@@ -249,11 +249,11 @@ export const getUnreadContactsCount = async () => {
   }
 };
 
-// 대시보드 요약 정보 조회 (모든 주요 지표)
+// 대시보드 요약 정보 조회
 export const getDashboardSummary = async () => {
   try {
     ensureToken(); // 토큰 확인
-    const response = await api.get("/dashboard/summary");
+    const response = await api.get("/stats/dashboard/summary");
     return response.data;
   } catch (error: any) {
     if (error.response?.status === 403) {

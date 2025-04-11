@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { userLogin } from "../api";
+import { useSocialLoginForm } from "../hooks/useSocialLoginForm";
 
 interface LoginFormProps {
   onLogin: (username: string) => void;
@@ -22,46 +23,49 @@ const LoginForm = ({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // 소셜 로그인 메시지 수신을 위한 이벤트 리스너
+  // 소셜 로그인 핸들러 가져오기
+  const { handleGoogleLogin, handleLineLogin } = useSocialLoginForm();
+
+  // 로컬 스토리지 이벤트 리스너로 소셜 로그인 상태 확인
   useEffect(() => {
-    const handleSocialLoginMessage = (event: MessageEvent) => {
-      // 디버깅을 위한 콘솔 로그 추가
-      console.log('소셜 로그인 메시지 수신:', event.data);
-      
-      if (event.data && event.data.type === "LOGIN_SUCCESS") {
-        const { accessToken, refreshToken, user } = event.data;
-        
-        // 로그인 성공 데이터 디버깅
-        console.log('로그인 성공 데이터:', { accessToken, refreshToken, user });
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'loginSuccess' && event.newValue === 'true') {
+        try {
+          // 로그인 데이터 가져오기
+          const loginData = JSON.parse(localStorage.getItem('loginData') || '{}');
+          const { accessToken, refreshToken, user } = loginData;
 
-        if (accessToken && user) {
-          // 토큰 저장
-          localStorage.setItem("authToken", accessToken);
-          if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
-          
-          // 사용자 정보 저장
-          localStorage.setItem("user", JSON.stringify(user));
+          if (accessToken && user) {
+            console.log('로그인 성공 데이터:', { accessToken, refreshToken, user });
+            
+            // 토큰 저장
+            localStorage.setItem("authToken", accessToken);
+            if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
+            
+            // 사용자 정보 저장
+            localStorage.setItem("user", JSON.stringify(user));
 
-          // API 헤더 설정
-          axios.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+            // API 헤더 설정
+            axios.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
 
-          // 로그인 콜백 호출
-          onLogin(user.displayName);
-          onClose();
-          
-          // 로그인 성공 후 페이지 새로고침 (약간의 지연 추가)
-          setTimeout(() => {
-            window.location.reload();
-          }, 1000);
-        } else {
-          console.error('액세스 토큰 또는 사용자 정보가 없습니다.');
+            // 로그인 콜백 호출
+            onLogin(user.displayName);
+            onClose();
+            
+            // 홈페이지로 리다이렉트
+            window.location.href = '/';
+          }
+        } catch (error) {
+          console.error('로그인 처리 중 오류:', error);
         }
       }
     };
 
-    window.addEventListener("message", handleSocialLoginMessage);
+    // 이벤트 리스너 등록
+    window.addEventListener("storage", handleStorageChange);
+
     return () => {
-      window.removeEventListener("message", handleSocialLoginMessage);
+      window.removeEventListener("storage", handleStorageChange);
     };
   }, [onLogin, onClose]);
 
@@ -80,18 +84,22 @@ const LoginForm = ({
       const response = await userLogin(email, password);
 
       // 로그인 성공
-      const userName =
-        response.user?.displayName || response.user?.email || email;
+      const userName = response.user?.displayName || response.user?.email || email;
 
-      // 잠시 대기 후 처리
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      
+      // 로그인 성공 데이터 저장
+      localStorage.setItem('loginSuccess', 'true');
+      localStorage.setItem('loginData', JSON.stringify({
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken,
+        user: response.user
+      }));
+
       // 로그인 성공 후 콜백 호출
       onLogin(userName);
       onClose();
       
-      // 인증 상태를 확실히 반영하기 위해 페이지 새로고침
-      window.location.reload();
+      // 홈페이지로 리다이렉트
+      window.location.href = '/';
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.data?.error) {
         setError(err.response.data.error);
@@ -101,91 +109,6 @@ const LoginForm = ({
     } finally {
       setLoading(false);
     }
-  };
-
-  // 공통 팝업창 설정 함수
-  const openPopup = (url: string) => {
-    const width = 500;
-    const height = 600;
-    const left = window.screenX + (window.outerWidth - width) / 2;
-    const top = window.screenY + (window.outerHeight - height) / 2;
-
-    const popup = window.open(
-      url,
-      "소셜 로그인",
-      `width=${width},height=${height},left=${left},top=${top}`
-    );
-
-    if (!popup) {
-      alert("팝업이 차단되었습니다. 팝업 차단을 해제해주세요.");
-      return false;
-    }
-    return true;
-  };
-
-  // Google 로그인 처리
-  const handleGoogleLogin = () => {
-    const baseUrl = import.meta.env.VITE_API_URL;
-    if (!baseUrl) {
-      alert("백엔드 URL이 설정되지 않았습니다.");
-      return;
-    }
-
-    const callbackUrl = `${window.location.origin}${window.location.pathname}#/auth/callback`;
-    const url = `${baseUrl}/api/auth/google?callback_url=${encodeURIComponent(callbackUrl)}`;
-    
-    console.log('Google 로그인 시도:', {
-      baseUrl,
-      callbackUrl,
-      finalUrl: url
-    });
-
-    openPopup(url);
-  };
-
-  // LINE 로그인 처리
-  const handleLineLogin = () => {
-    const baseUrl = import.meta.env.VITE_API_URL;
-    if (!baseUrl) {
-      alert("백엔드 URL이 설정되지 않았습니다.");
-      return;
-    }
-
-    const callbackUrl = `${window.location.origin}${window.location.pathname}#/auth/callback`;
-    const url = `${baseUrl}/api/auth/line?callback_url=${encodeURIComponent(callbackUrl)}`;
-    
-    console.log('LINE 로그인 시도:', {
-      baseUrl,
-      callbackUrl,
-      finalUrl: url,
-      env: import.meta.env
-    });
-
-    if (openPopup(url)) {
-      console.log('LINE 로그인 팝업이 성공적으로 열렸습니다.');
-    } else {
-      console.error('LINE 로그인 팝업 열기 실패');
-    }
-  };
-
-  // Kakao 로그인 처리
-  const handleKakaoLogin = () => {
-    const baseUrl = import.meta.env.VITE_API_URL;
-    if (!baseUrl) {
-      alert("백엔드 URL이 설정되지 않았습니다.");
-      return;
-    }
-
-    const callbackUrl = `${window.location.origin}${window.location.pathname}#/auth/callback`;
-    const url = `${baseUrl}/api/auth/kakao?callback_url=${encodeURIComponent(callbackUrl)}`;
-    
-    console.log('Kakao 로그인 시도:', {
-      baseUrl,
-      callbackUrl,
-      finalUrl: url
-    });
-
-    openPopup(url);
   };
 
   return (
@@ -268,48 +191,31 @@ const LoginForm = ({
           </div>
         )}
 
-        <div className="mt-6 grid grid-cols-3 gap-3">
+        <div className="mt-6 flex justify-center gap-3">
           <button
             onClick={handleGoogleLogin}
-            className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+            className="w-full inline-flex justify-center py-2 px-4 border rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
           >
-            <svg
-              className="w-5 h-5"
-              aria-hidden="true"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              {/* Google G 아이콘 */}
+            <svg className="w-5 h-5" aria-hidden="true" viewBox="0 0 24 24">
+              {/* Google 아이콘 */}
               <path
-                d="M12.2461 12C12.2461 11.4477 12.6939 11 13.2461 11H20.9998C21.5521 11 21.9998 11.4477 21.9998 12C21.9998 12.5523 21.5521 13 20.9998 13H13.2461C12.6939 13 12.2461 12.5523 12.2461 12Z"
-                fill="#5F6368"
+                d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"
+                fill="#4285F4"
               />
               <path
-                d="M13.2461 18C12.6939 18 12.2461 17.5523 12.2461 17C12.2461 16.4477 12.6939 16 13.2461 16H20.9998C21.5521 16 21.9998 16.4477 21.9998 17C21.9998 17.5523 21.5521 18 20.9998 18H13.2461Z"
-                fill="#5F6368"
+                d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"
+                fill="#34A853"
               />
               <path
-                d="M5.49976 18C3.01449 18 0.999756 15.9853 0.999756 13.5C0.999756 11.0147 3.01449 9 5.49976 9C7.52237 9 9.22625 10.3146 9.84878 12.1542C9.89088 12.2721 9.91226 12.3979 9.91226 12.5244V13.5H11.9998C12.552 13.5 12.9998 13.9477 12.9998 14.5C12.9998 15.0523 12.552 15.5 11.9998 15.5H5.49976C4.94747 15.5 4.49976 15.0523 4.49976 14.5C4.49976 13.9477 4.94747 13.5 5.49976 13.5H7.91024C7.6838 12.6093 6.967 11.9044 6.07333 11.6399C5.75634 11.5476 5.49976 11.2679 5.49976 10.9375C5.49976 10.6071 5.75634 10.3274 6.07333 10.2351C7.33308 9.83811 8.27724 8.72618 8.45618 7.36203C8.49878 7.08708 8.73437 6.87616 9.01203 6.86431C9.28969 6.85247 9.5408 7.04187 9.60389 7.3148C9.8597 8.4033 10.5491 9.33727 11.5053 9.90592C11.7547 10.0602 11.8773 10.3678 11.8053 10.6629C11.7332 10.958 11.4836 11.1751 11.1801 11.2061C10.0586 11.3183 9.06997 11.8598 8.41226 12.6638C8.59271 13.3333 9.19878 13.8469 9.91226 13.9611V12.5244C9.91226 12.3979 9.89088 12.2721 9.84878 12.1542C9.22625 10.3146 7.52237 9 5.49976 9Z"
-                fill="#5F6368"
+                d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"
+                fill="#FBBC05"
+              />
+              <path
+                d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"
+                fill="#EA4335"
               />
             </svg>
             <span className="ml-2">Google</span>
-          </button>
-
-          <button
-            onClick={handleKakaoLogin}
-            className="w-full inline-flex justify-center py-2 px-4 border rounded-md shadow-sm bg-[#FEE500] text-sm font-medium text-[#3A1D1D] hover:bg-[#F6DC00]"
-          >
-            <svg className="w-5 h-5" aria-hidden="true" viewBox="0 0 24 24">
-              {/* Kakao 아이콘 */}
-              <path
-                fillRule="evenodd"
-                clipRule="evenodd"
-                d="M12 4C7.58172 4 4 6.95219 4 10.5C4 12.7105 5.41515 14.6668 7.5 15.7842V19.5C7.5 19.6881 7.59272 19.8613 7.74545 19.9472C7.89818 20.033 8.08727 20.0223 8.23178 19.9202L12.4318 17.2592C12.6208 17.2863 12.8135 17.3 13.0098 17.3C17.428 17.3 21.0098 14.3478 21.0098 10.8C21.0098 7.25219 17.4183 4.3 13 4.3C12.9999 4.3 12.9999 4 12 4Z"
-                fill="#3A1D1D"
-              />
-            </svg>
-            <span className="ml-2">Kakao</span>
           </button>
 
           <button

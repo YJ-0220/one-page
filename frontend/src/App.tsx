@@ -82,44 +82,56 @@ function App() {
     }
   }, [checkAuth, navigate]);
 
-  // 전역 이벤트 리스너로 소셜 로그인 메시지 수신 처리
+  // 로컬 스토리지 이벤트 리스너로 소셜 로그인 상태 확인
   useEffect(() => {
-    const handleLoginMessage = async (event: MessageEvent) => {
-      // 소셜 로그인 성공 메시지 처리
-      if (event.data && event.data.type === "LOGIN_SUCCESS") {
-        const { accessToken, refreshToken, userName } = event.data;
+    const handleStorageChange = async (event: StorageEvent) => {
+      if (event.key === 'loginSuccess' && event.newValue === 'true') {
+        try {
+          // 로그인 데이터 가져오기
+          const loginData = JSON.parse(localStorage.getItem('loginData') || '{}');
+          const { accessToken, refreshToken, user } = loginData;
 
-        if (accessToken) {
-          console.log("App: 소셜 로그인 메시지 수신됨");
-          // 토큰 저장
-          localStorage.setItem("authToken", accessToken);
-          if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
-          if (userName) localStorage.setItem("userName", userName);
+          if (accessToken) {
+            console.log("App: 소셜 로그인 성공");
+            // 토큰 저장
+            localStorage.setItem("authToken", accessToken);
+            if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
+            
+            // 사용자 정보가 있는 경우 저장
+            if (user) {
+              localStorage.setItem("user", JSON.stringify(user));
+            }
 
-          // API 헤더 설정
-          axios.defaults.headers.common[
-            "Authorization"
-          ] = `Bearer ${accessToken}`;
+            // API 헤더 설정
+            axios.defaults.headers.common[
+              "Authorization"
+            ] = `Bearer ${accessToken}`;
 
-          // 인증 상태 업데이트
-          try {
+            // 인증 상태 업데이트
             await checkAuth();
             setActivePage("home");
             console.log("App: 인증 상태 업데이트 성공");
-          } catch (error) {
-            console.error("App: 인증 상태 업데이트 실패", error);
+            
+            // 로그인 상태 초기화
+            localStorage.removeItem('loginSuccess');
+            localStorage.removeItem('loginData');
+            
+            // 홈페이지로 리다이렉트
+            navigate("/");
           }
+        } catch (error) {
+          console.error("App: 인증 상태 업데이트 실패", error);
         }
       }
     };
 
     // 이벤트 리스너 등록
-    window.addEventListener("message", handleLoginMessage);
+    window.addEventListener("storage", handleStorageChange);
 
     return () => {
-      window.removeEventListener("message", handleLoginMessage);
+      window.removeEventListener("storage", handleStorageChange);
     };
-  }, [checkAuth]);
+  }, [checkAuth, navigate]);
 
   // 로그인 핸들러 함수
   const handleLogin = useCallback(
@@ -149,8 +161,15 @@ function App() {
 
   // 로그아웃 핸들러
   const handleLogout = () => {
+    // 로그아웃 처리
     logout();
+    
+    // 홈 페이지로 이동
     setActivePage("home");
+    navigate("/");
+    
+    // 페이지 새로고침 (선택적)
+    // window.location.reload();
   };
 
   // 로딩 중이면 로딩 표시

@@ -82,10 +82,19 @@ export default function useAuth() {
 
   // 로그아웃
   const logout = useCallback(() => {
+    // 로그아웃 API 호출
     userLogout();
+    
+    // 로컬 스토리지에서 모든 인증 관련 항목 제거
+    removeAuthToken();
+    
+    // 상태 초기화
     setIsAuthenticated(false);
     setUser(null);
     setError(null);
+    
+    // 페이지 새로고침 (선택적)
+    // window.location.reload();
   }, []);
 
   // 인증 상태 확인

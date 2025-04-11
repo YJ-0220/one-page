@@ -29,6 +29,9 @@ export const removeAuthToken = (): void => {
   localStorage.removeItem('refreshToken');
   localStorage.removeItem('userName');
   localStorage.removeItem('userId');
+  localStorage.removeItem('user');
+  localStorage.removeItem('loginSuccess');
+  localStorage.removeItem('loginData');
   
   // 전역 axios 헤더에서 Authorization 제거
   delete axios.defaults.headers.common['Authorization'];
@@ -37,6 +40,9 @@ export const removeAuthToken = (): void => {
   if (apiInstance?.defaults) {
     delete apiInstance.defaults.headers.common['Authorization'];
   }
+  
+  // 페이지 새로고침 (선택적)
+  // window.location.reload();
 };
 
 // 인증 상태 확인 함수

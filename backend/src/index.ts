@@ -31,10 +31,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false,
-  saveUninitialized: false,
+  saveUninitialized: true,
   cookie: {
-    secure: false,
-    sameSite: 'none',
+    secure: false, // 개발 환경에서는 false로 설정
+    sameSite: 'none', // 크로스 도메인 요청을 위해 none으로 설정
+    maxAge: 5 * 60 * 1000 // 5분으로 제한 (LINE 로그인에 필요한 최소 시간)
   }
 }));
 
@@ -57,9 +58,9 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // 라우터 설정
-app.use("/api/auth", authRouter);
-app.use("/api/contact", contactRouter);
-app.use("/api/stats", statsRouter);
+app.use("/auth", authRouter);
+app.use("/contact", contactRouter);
+app.use("/stats", statsRouter);
 
 // 기본 라우트
 app.get("/", (req, res) => {
