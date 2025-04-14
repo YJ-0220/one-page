@@ -7,11 +7,21 @@ import ContactSection from "@/components/sections/ContactSection";
 const HomePage = () => {
   return (
     <div className="space-y-0">
-      <HeroSection />
-      <AboutSection />
-      <ServicesSection />
-      <TestimonialsSection />
-      <ContactSection />
+      <div id="home">
+        <HeroSection />
+      </div>
+      <div id="about">
+        <AboutSection />
+      </div>
+      <div id="services">
+        <ServicesSection />
+      </div>
+      <div id="testimonials">
+        <TestimonialsSection />
+      </div>
+      <div id="contact">
+        <ContactSection />
+      </div>
     </div>
   );
 };

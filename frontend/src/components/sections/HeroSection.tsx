@@ -1,59 +1,55 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
+import { getImageSlides } from '../../api/content';
 
-const HeroSection = () => {
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [fadeOut, setFadeOut] = useState(false);
+interface ImageSlide {
+  id: string;
+  imageUrl: string;
+  title: string;
+  isActive: boolean;
+}
 
-  // 배경 이미지 URL 배열
-  const backgroundImages = [
-    "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=1920",
-    "https://images.unsplash.com/photo-1496171367470-9ed9a91ea931?q=80&w=1920",
-    "https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?q=80&w=1920",
-    "https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=1920",
-  ];
+const HeroSection: React.FC = () => {
+  const [backgroundImages, setBackgroundImages] = useState<ImageSlide[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-  // 이미지 페이드 아웃 효과 및 순환 처리
   useEffect(() => {
-    const interval = setInterval(() => {
-      setFadeOut(true);
+    const fetchImages = async () => {
+      try {
+        const data = await getImageSlides();
+        setBackgroundImages(data.filter((img: ImageSlide) => img.isActive));
+      } catch (error) {
+        console.error('이미지를 불러오는데 실패했습니다:', error);
+      }
+    };
+    fetchImages();
+  }, []);
 
-      setTimeout(() => {
-        setCurrentImageIndex((prevIndex) =>
-          prevIndex === backgroundImages.length - 1 ? 0 : prevIndex + 1
-        );
-        setFadeOut(false);
-      }, 1000); // 페이드 아웃 애니메이션 시간
-    }, 5000); // 이미지 변경 간격
-
-    return () => clearInterval(interval);
+  useEffect(() => {
+    if (backgroundImages.length > 1) {
+      const interval = setInterval(() => {
+        setCurrentIndex((prev) => (prev === backgroundImages.length - 1 ? 0 : prev + 1));
+      }, 5000);
+      return () => clearInterval(interval);
+    }
   }, [backgroundImages.length]);
 
+  if (backgroundImages.length === 0) return null;
+
   return (
-    <section
-      id="home"
-      className="relative overflow-hidden h-screen w-full flex flex-col justify-center items-center"
-    >
-      {/* 배경 이미지 */}
+    <section className="relative h-screen">
       <div
-        className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ${
-          fadeOut ? "opacity-0" : "opacity-100"
-        }`}
-        style={{
-          backgroundImage: `url(${backgroundImages[currentImageIndex]})`,
-        }}
+        className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
+        style={{ backgroundImage: `url(${backgroundImages[currentIndex].imageUrl})` }}
       />
-
-      {/* 어두운 오버레이 */}
-      <div className="absolute inset-0 bg-black opacity-60"></div>
-
-      {/* 콘텐츠 */}
-      <div className="relative z-30 text-white max-w-3xl mx-auto px-4 text-center">
-        <h2 className="text-4xl font-bold mb-4">
-          환영합니다! 코리아 레볼루션입니다
-        </h2>
-        <p className="text-2xl mb-10">
-          코리아 웹솔루션과 함께 비즈니스의 디지털 전환을 시작하세요.
-        </p>
+      <div className="absolute inset-0 bg-black bg-opacity-50" />
+      <div className="relative h-full flex items-center justify-center text-center text-white">
+        <div className="max-w-3xl px-4">
+          <h1 className="text-5xl font-bold mb-6">{backgroundImages[currentIndex].title}</h1>
+          <p className="text-xl mb-8">최고의 서비스를 제공합니다</p>
+          <button className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition-colors">
+            시작하기
+          </button>
+        </div>
       </div>
     </section>
   );
