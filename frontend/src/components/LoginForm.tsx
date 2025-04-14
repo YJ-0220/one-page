@@ -7,16 +7,12 @@ interface LoginFormProps {
   onLogin: (username: string) => void;
   onClose: () => void;
   socialOnly?: boolean;
-  modalMode?: boolean;
-  onSocialLoginClick?: () => void;
 }
 
 const LoginForm = ({
   onLogin,
   onClose,
   socialOnly = false,
-  modalMode = false,
-  onSocialLoginClick
 }: LoginFormProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,34 +25,43 @@ const LoginForm = ({
   // 로컬 스토리지 이벤트 리스너로 소셜 로그인 상태 확인
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'loginSuccess' && event.newValue === 'true') {
+      if (event.key === "loginSuccess" && event.newValue === "true") {
         try {
           // 로그인 데이터 가져오기
-          const loginData = JSON.parse(localStorage.getItem('loginData') || '{}');
+          const loginData = JSON.parse(
+            localStorage.getItem("loginData") || "{}"
+          );
           const { accessToken, refreshToken, user } = loginData;
 
           if (accessToken && user) {
-            console.log('로그인 성공 데이터:', { accessToken, refreshToken, user });
-            
+            console.log("로그인 성공 데이터:", {
+              accessToken,
+              refreshToken,
+              user,
+            });
+
             // 토큰 저장
             localStorage.setItem("authToken", accessToken);
-            if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
-            
+            if (refreshToken)
+              localStorage.setItem("refreshToken", refreshToken);
+
             // 사용자 정보 저장
             localStorage.setItem("user", JSON.stringify(user));
 
             // API 헤더 설정
-            axios.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+            axios.defaults.headers.common[
+              "Authorization"
+            ] = `Bearer ${accessToken}`;
 
             // 로그인 콜백 호출
             onLogin(user.displayName);
             onClose();
-            
+
             // 홈페이지로 리다이렉트
-            window.location.href = '/';
+            window.location.href = "/";
           }
         } catch (error) {
-          console.error('로그인 처리 중 오류:', error);
+          console.error("로그인 처리 중 오류:", error);
         }
       }
     };
@@ -84,22 +89,26 @@ const LoginForm = ({
       const response = await userLogin(email, password);
 
       // 로그인 성공
-      const userName = response.user?.displayName || response.user?.email || email;
+      const userName =
+        response.user?.displayName || response.user?.email || email;
 
       // 로그인 성공 데이터 저장
-      localStorage.setItem('loginSuccess', 'true');
-      localStorage.setItem('loginData', JSON.stringify({
-        accessToken: response.accessToken,
-        refreshToken: response.refreshToken,
-        user: response.user
-      }));
+      localStorage.setItem("loginSuccess", "true");
+      localStorage.setItem(
+        "loginData",
+        JSON.stringify({
+          accessToken: response.accessToken,
+          refreshToken: response.refreshToken,
+          user: response.user,
+        })
+      );
 
       // 로그인 성공 후 콜백 호출
       onLogin(userName);
       onClose();
-      
+
       // 홈페이지로 리다이렉트
-      window.location.href = '/';
+      window.location.href = "/";
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.data?.error) {
         setError(err.response.data.error);

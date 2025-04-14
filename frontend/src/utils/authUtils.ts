@@ -1,5 +1,5 @@
-import axios from 'axios';
-import { API_URL } from '../api';
+import axios from "axios";
+import { API_URL } from "../api";
 
 // api 인스턴스를 저장할 전역 변수
 let apiInstance: any = null;
@@ -11,36 +11,36 @@ export const setApiInstance = (api: any): void => {
 
 // 토큰 관리 함수들
 export const setAuthToken = (token: string): void => {
-  localStorage.setItem('authToken', token);
-  axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  
+  localStorage.setItem("authToken", token);
+  axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
   if (apiInstance?.defaults) {
-    apiInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    apiInstance.defaults.headers.common["Authorization"] = `Bearer ${token}`;
   }
 };
 
 export const getAuthToken = (): string | null => {
-  return localStorage.getItem('authToken');
+  return localStorage.getItem("authToken");
 };
 
 export const removeAuthToken = (): void => {
   // 로컬 스토리지에서 모든 인증 관련 항목 제거
-  localStorage.removeItem('authToken');
-  localStorage.removeItem('refreshToken');
-  localStorage.removeItem('userName');
-  localStorage.removeItem('userId');
-  localStorage.removeItem('user');
-  localStorage.removeItem('loginSuccess');
-  localStorage.removeItem('loginData');
-  
+  localStorage.removeItem("authToken");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("userName");
+  localStorage.removeItem("userId");
+  localStorage.removeItem("user");
+  localStorage.removeItem("loginSuccess");
+  localStorage.removeItem("loginData");
+
   // 전역 axios 헤더에서 Authorization 제거
-  delete axios.defaults.headers.common['Authorization'];
-  
+  delete axios.defaults.headers.common["Authorization"];
+
   // api 인스턴스의 헤더도 제거 시도
   if (apiInstance?.defaults) {
-    delete apiInstance.defaults.headers.common['Authorization'];
+    delete apiInstance.defaults.headers.common["Authorization"];
   }
-  
+
   // 페이지 새로고침 (선택적)
   // window.location.reload();
 };
@@ -48,16 +48,16 @@ export const removeAuthToken = (): void => {
 // 인증 상태 확인 함수
 export const checkAuthenticated = async (): Promise<boolean> => {
   const token = getAuthToken();
-  
+
   if (!token) {
     return false;
   }
-  
+
   try {
     const response = await axios.get(`${API_URL}/api/auth/status`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
     });
-    
+
     return response.data.authenticated === true;
   } catch (error) {
     return false;
@@ -68,15 +68,15 @@ export const checkAuthenticated = async (): Promise<boolean> => {
 export const decodeToken = (token: string): any => {
   try {
     // JWT는 header.payload.signature 형식
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
     const jsonPayload = decodeURIComponent(
       atob(base64)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
     );
-    
+
     return JSON.parse(jsonPayload);
   } catch (error) {
     return null;
@@ -96,53 +96,51 @@ export const setupAxiosInterceptors = (): void => {
     },
     (error) => Promise.reject(error)
   );
-  
+
   // 응답 인터셉터
   axios.interceptors.response.use(
     (response) => response,
     async (error) => {
       const originalRequest = error.config;
-      
+
       // 토큰 만료로 401 에러가 발생한 경우
-      if (error.response?.status === 401 && 
-          !originalRequest._retry) {
-        
+      if (error.response?.status === 401 && !originalRequest._retry) {
         originalRequest._retry = true;
-        
+
         try {
           // 리프레시 토큰으로 새 액세스 토큰 요청
-          const refreshToken = localStorage.getItem('refreshToken');
+          const refreshToken = localStorage.getItem("refreshToken");
           if (!refreshToken) {
-            throw new Error('리프레시 토큰이 없습니다');
+            throw new Error("리프레시 토큰이 없습니다");
           }
-          
+
           // 올바른 URL 경로 사용
           const response = await axios.post(`${API_URL}/auth/refresh-token`, {
-            refreshToken
+            refreshToken,
           });
-          
+
           const { accessToken } = response.data;
           if (accessToken) {
             setAuthToken(accessToken);
-            
+
             // 실패했던 요청 재시도
             return axios(originalRequest);
           } else {
-            throw new Error('새 액세스 토큰을 받지 못했습니다');
+            throw new Error("새 액세스 토큰을 받지 못했습니다");
           }
         } catch (refreshError) {
           // 로그아웃 처리
           removeAuthToken();
-          
-          if (!window.location.pathname.includes('/login')) {
-            alert('로그인이 만료되었습니다. 다시 로그인해주세요.');
+
+          if (!window.location.pathname.includes("/login")) {
+            alert("로그인이 만료되었습니다. 다시 로그인해주세요.");
             window.location.reload();
           }
           return Promise.reject(refreshError);
         }
       }
-      
+
       return Promise.reject(error);
     }
   );
-}; 
+};

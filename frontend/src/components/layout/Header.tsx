@@ -30,7 +30,7 @@ const Header = ({
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const navigate = useNavigate();
 
-  const displayName = username || email || '사용자';
+  const displayName = username || email || "사용자";
 
   return (
     <header className="bg-[#ffffffd0] shadow-sm fixed top-0 left-0 right-0 z-50 w-full">

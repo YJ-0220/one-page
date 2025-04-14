@@ -3,7 +3,7 @@ export interface AuthUser {
   email: string;
   displayName: string | null;
   photoURL: string | null;
-  role: 'user' | 'admin';
+  role: "user" | "admin";
   createdAt: string;
   updatedAt: string;
-} 
+}

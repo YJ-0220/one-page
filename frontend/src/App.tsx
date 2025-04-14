@@ -8,7 +8,12 @@ import ContactWidget from "@/components/ContactWidget";
 import { setupAxiosInterceptors } from "./utils/authUtils";
 import useAuth from "./hooks/useAuth";
 import axios from "axios";
-import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+} from "react-router-dom";
 import LoginSuccess from "./components/LoginSuccess";
 
 // axios 인터셉터 설정 (앱 시작 시 1회 실행)
@@ -23,14 +28,13 @@ if (token) {
 function App() {
   const [activePage, setActivePage] = useState<string>("home");
   const navigate = useNavigate();
-  const location = useLocation();
 
   // useAuth 훅 사용
   const { isAuthenticated, user, loading, logout, checkAuth } = useAuth();
 
   // 사용자 정보 추출
   const username = user?.displayName || null;
-  const isAdmin = user?.role === 'admin' || false;
+  const isAdmin = user?.role === "admin" || false;
 
   // URL 매개변수에서 토큰 확인
   useEffect(() => {
@@ -38,7 +42,6 @@ function App() {
     const hasToken = url.includes("token=") || url.includes("accessToken=");
 
     if (hasToken) {
-      console.log("URL에서 토큰 감지됨");
       try {
         // URL에서 토큰 추출
         const urlObj = new URL(url);
@@ -50,7 +53,6 @@ function App() {
         const user = params.get("user");
 
         if (token) {
-          console.log("토큰 저장 및 상태 업데이트");
           // 토큰 저장
           localStorage.setItem("authToken", token);
           if (refresh) localStorage.setItem("refreshToken", refresh);
@@ -85,18 +87,20 @@ function App() {
   // 로컬 스토리지 이벤트 리스너로 소셜 로그인 상태 확인
   useEffect(() => {
     const handleStorageChange = async (event: StorageEvent) => {
-      if (event.key === 'loginSuccess' && event.newValue === 'true') {
+      if (event.key === "loginSuccess" && event.newValue === "true") {
         try {
           // 로그인 데이터 가져오기
-          const loginData = JSON.parse(localStorage.getItem('loginData') || '{}');
+          const loginData = JSON.parse(
+            localStorage.getItem("loginData") || "{}"
+          );
           const { accessToken, refreshToken, user } = loginData;
 
           if (accessToken) {
-            console.log("App: 소셜 로그인 성공");
             // 토큰 저장
             localStorage.setItem("authToken", accessToken);
-            if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
-            
+            if (refreshToken)
+              localStorage.setItem("refreshToken", refreshToken);
+
             // 사용자 정보가 있는 경우 저장
             if (user) {
               localStorage.setItem("user", JSON.stringify(user));
@@ -110,12 +114,11 @@ function App() {
             // 인증 상태 업데이트
             await checkAuth();
             setActivePage("home");
-            console.log("App: 인증 상태 업데이트 성공");
-            
+
             // 로그인 상태 초기화
-            localStorage.removeItem('loginSuccess');
-            localStorage.removeItem('loginData');
-            
+            localStorage.removeItem("loginSuccess");
+            localStorage.removeItem("loginData");
+
             // 홈페이지로 리다이렉트
             navigate("/");
           }
@@ -141,10 +144,10 @@ function App() {
         // 인증 상태 확인 (더 확실한 처리를 위해 async/await 사용)
         const authStatus = await checkAuth();
 
-        // 인증 상태가 false인 경우 즉시 다시 시도 
+        // 인증 상태가 false인 경우 즉시 다시 시도
         if (!authStatus) {
           const retryStatus = await checkAuth();
-          
+
           // 여전히 실패하면 페이지 새로고침
           if (!retryStatus) {
             window.location.reload();
@@ -163,11 +166,11 @@ function App() {
   const handleLogout = () => {
     // 로그아웃 처리
     logout();
-    
+
     // 홈 페이지로 이동
     setActivePage("home");
     navigate("/");
-    
+
     // 페이지 새로고침 (선택적)
     // window.location.reload();
   };
@@ -183,7 +186,7 @@ function App() {
         username={user?.displayName || null}
         email={user?.email || null}
         photoURL={user?.photoURL || null}
-        onLogin={() => navigate('/login')}
+        onLogin={() => navigate("/login")}
         onLogout={handleLogout}
         activePage={activePage}
         setActivePage={setActivePage}
