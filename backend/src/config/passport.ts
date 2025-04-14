@@ -94,16 +94,22 @@ export const configurePassport = () => {
       "line",
       new LineStrategy(
         {
-          channelID: process.env.LINE_CHANNEL_ID || '',
-          channelSecret: process.env.LINE_CHANNEL_SECRET || '',
-          callbackURL: `${process.env.BACKEND_URL}/auth/line/callback`,
-          scope: 'profile openid email',
-          passReqToCallback: true
+          channelID: process.env.LINE_CHANNEL_ID || "",
+          channelSecret: process.env.LINE_CHANNEL_SECRET || "",
+          callbackURL: `${BACKEND_URL}/auth/line/callback`,
+          scope: "profile openid email",
+          passReqToCallback: true,
         },
-        async (req: Request, accessToken: string, refreshToken: string, profile: any, done: any) => {
+        async (
+          req: Request,
+          accessToken: string,
+          refreshToken: string,
+          profile: any,
+          done: any
+        ) => {
           try {
-            console.log('LINE 로그인 콜백 - 프로필:', profile);
-            
+            console.log("LINE 로그인 콜백 - 프로필:", profile);
+
             // LINE ID를 기반으로 이메일 생성
             const email = `line_${profile.id}@line.user`;
 
@@ -115,9 +121,11 @@ export const configurePassport = () => {
               const randomPassword = crypto.randomBytes(20).toString("hex");
               user = await User.create({
                 email,
-                displayName: profile.displayName || profile._json?.name || "라인사용자",
+                displayName:
+                  profile.displayName || profile._json?.name || "라인사용자",
                 password: randomPassword,
-                photo: profile.photos?.[0]?.value || profile._json?.picture || "",
+                photo:
+                  profile.photos?.[0]?.value || profile._json?.picture || "",
                 isAdmin: false,
                 lineId: profile.id,
               });
@@ -130,15 +138,18 @@ export const configurePassport = () => {
             }
 
             // JWT 토큰 생성
-            const { accessToken: jwtAccessToken, refreshToken: jwtRefreshToken } = generateTokens(user);
+            const {
+              accessToken: jwtAccessToken,
+              refreshToken: jwtRefreshToken,
+            } = generateTokens(user);
 
             // 사용자 정보와 토큰을 함께 반환
             return done(null, {
               user,
               tokens: {
                 accessToken: jwtAccessToken,
-                refreshToken: jwtRefreshToken
-              }
+                refreshToken: jwtRefreshToken,
+              },
             });
           } catch (error) {
             console.error("LINE 로그인 처리 중 오류:", error);

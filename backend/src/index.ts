@@ -90,7 +90,7 @@ const startServer = async () => {
 
     // 서버 시작
     app.listen(PORT, () => {
-      console.log(`서버가 http://localhost:${PORT} 에서 실행 중입니다.`);
+      console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
       console.log("환경 변수:");
       console.log("- PORT:", PORT);
       console.log("- CLIENT_URL:", CLIENT_URL);
