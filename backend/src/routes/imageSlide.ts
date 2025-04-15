@@ -2,6 +2,7 @@ import express from 'express';
 import { upload } from '../config/multer';
 import ImageSlide from '../models/ImageSlide';
 import { Request, Response } from 'express';
+import { deleteFile } from '../utils/fileUtils';
 
 const router = express.Router();
 
@@ -104,6 +105,16 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     if (!imageSlide) {
       return res.status(404).json({ message: '이미지 슬라이드를 찾을 수 없습니다.' });
+    }
+
+    // 이미지 파일 삭제
+    if (imageSlide.imageUrl) {
+      try {
+        await deleteFile(imageSlide.imageUrl);
+      } catch (error) {
+        console.error('이미지 파일 삭제 실패:', error);
+        // 파일 삭제 실패해도 계속 진행
+      }
     }
 
     await ImageSlide.findByIdAndDelete(id);

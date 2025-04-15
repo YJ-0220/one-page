@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // 인증 헤더 가져오기
 const getAuthHeaders = () => {
@@ -11,12 +11,12 @@ const getAuthHeaders = () => {
   };
 };
 
-// 이미지 URL을 백엔드 서버 URL로 변환하는 함수
+// 이미지 URL을 상대 경로로 변환하는 함수
 export const getImageUrl = (url: string) => {
   if (!url) return '';
   if (url.startsWith('http')) return url;
-  if (url.startsWith('/uploads')) return `${API_URL}${url}`;
-  return `${API_URL}/uploads/${url}`;
+  // 상대 경로로 반환
+  return url;
 };
 
 // 이벤트 팝업 API

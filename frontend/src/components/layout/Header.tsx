@@ -58,12 +58,9 @@ const Header: React.FC<HeaderProps> = ({ activePage, setActivePage, isAdmin }) =
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => navigate("/login")}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                로그인
-              </button>
+              <div className="hidden">
+                {/* 로그인 버튼 숨김 */}
+              </div>
             )}
           </div>
         </div>
