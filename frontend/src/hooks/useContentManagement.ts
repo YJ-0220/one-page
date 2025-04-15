@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  getEventPopups,
   createEventPopup,
   updateEventPopup,
   deleteEventPopup,
@@ -13,6 +12,7 @@ import {
   updateTestimonial,
   deleteTestimonial,
 } from "../api/content";
+import { usePopup } from "./usePopup";
 
 interface PopupFormData {
   title: string;
@@ -40,12 +40,24 @@ interface TestimonialFormData {
   image: File | null;
 }
 
+interface PopupImage {
+  _id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  isActive: boolean;
+  startDate?: string;
+  endDate?: string;
+  link?: string;
+}
+
 export const useContentManagement = () => {
   const [activeTab, setActiveTab] = useState("popup");
-  const [popupImages, setPopupImages] = useState<any[]>([]);
   const [slideImages, setSlideImages] = useState<any[]>([]);
   const [testimonials, setTestimonials] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const { popups, fetchPopups } = usePopup();
+  
   const [popupFormData, setPopupFormData] = useState<PopupFormData>({
     title: "",
     description: "",
@@ -54,6 +66,7 @@ export const useContentManagement = () => {
     endDate: null,
     image: null,
   });
+  
   const [slideFormData, setSlideFormData] = useState<SlideFormData>({
     title: "",
     description: "",
@@ -61,6 +74,7 @@ export const useContentManagement = () => {
     order: 0,
     image: null,
   });
+  
   const [testimonialFormData, setTestimonialFormData] = useState<TestimonialFormData>({
     name: "",
     position: "",
@@ -72,14 +86,13 @@ export const useContentManagement = () => {
 
   const fetchImages = async () => {
     try {
-      const [popups, slides, testimonialData] = await Promise.all([
-        getEventPopups(),
+      const [slides, testimonialData] = await Promise.all([
         getImageSlides(),
         getTestimonials(),
       ]);
-      setPopupImages(popups);
       setSlideImages(slides);
       setTestimonials(testimonialData);
+      await fetchPopups(true);
     } catch (error) {
       console.error("이미지 데이터 로드 실패:", error);
     }
@@ -268,7 +281,7 @@ export const useContentManagement = () => {
   return {
     activeTab,
     setActiveTab,
-    popupImages,
+    popups,
     slideImages,
     testimonials,
     isUploading,

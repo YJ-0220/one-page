@@ -1,22 +1,30 @@
-import React, { useState } from "react";
+import React, { useState, Dispatch, SetStateAction } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import useAuth from "@/hooks/useAuth";
 import LogoIcon from "@/assets/faviconImg.png";
 import Navbar from "@/components/Navbar";
 
-interface HeaderProps {
+export interface HeaderProps {
+  username: string | null;
+  email: string | null;
+  photoURL: string | null;
+  onLogin: () => void;
+  onLogout: () => void;
   activePage: string;
-  setActivePage: (page: string) => void;
+  setActivePage: Dispatch<SetStateAction<string>>;
   isAdmin: boolean;
+  userId: string | null;
 }
 
-const Header: React.FC<HeaderProps> = ({ activePage, setActivePage, isAdmin }) => {
-  const { user, logout } = useAuth();
+const Header: React.FC<HeaderProps> = ({ 
+  activePage, 
+  setActivePage, 
+  isAdmin, 
+  onLogin, 
+  onLogout 
+}) => {
+  const { user } = useAuth();
   const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-  };
 
   return (
     <header className="bg-[#ffffffd0] shadow-sm fixed top-0 left-0 right-0 z-50 w-full">
@@ -51,15 +59,20 @@ const Header: React.FC<HeaderProps> = ({ activePage, setActivePage, isAdmin }) =
                   </button>
                 )}
                 <button
-                  onClick={handleLogout}
+                  onClick={onLogout}
                   className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                 >
                   로그아웃
                 </button>
               </div>
             ) : (
-              <div className="hidden">
-                {/* 로그인 버튼 숨김 */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onLogin}
+                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  로그인
+                </button>
               </div>
             )}
           </div>

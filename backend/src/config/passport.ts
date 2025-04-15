@@ -6,6 +6,8 @@ import crypto from "crypto";
 import { Request } from "express";
 import { ExtractJwt, Strategy as JwtStrategy } from "passport-jwt";
 import { generateTokens } from "../middleware/authMiddleware";
+import dotenv from "dotenv";
+import path from "path";
 
 // Passport 타입 정의
 declare global {
@@ -14,7 +16,30 @@ declare global {
   }
 }
 
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3000";
+// 환경변수 로드
+const envFile =
+  process.env.NODE_ENV === "production"
+    ? ".env.production"
+    : ".env.development";
+dotenv.config({ path: path.resolve(process.cwd(), envFile) });
+
+// 필수 환경변수 검증
+const requiredEnvVars = [
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+  "LINE_CHANNEL_ID",
+  "LINE_CHANNEL_SECRET",
+  "BACKEND_URL",
+] as const;
+
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    console.error(`필수 환경변수 ${envVar}가 설정되지 않았습니다.`);
+    process.exit(1);
+  }
+}
+
+const BACKEND_URL = process.env.BACKEND_URL as string;
 
 // 콜백 URL 검증 함수
 const validateCallbackUrl = (provider: string, callbackUrl: string) => {
@@ -33,26 +58,17 @@ passport.deserializeUser((user: Express.User, done) => {
 });
 
 export const configurePassport = () => {
-  // Google OAuth 전략 설정
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-    console.warn("Google OAuth credentials are not set");
-  } else {
+  // Google OAuth 전략
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     passport.use(
-      "google",
       new GoogleStrategy(
         {
           clientID: process.env.GOOGLE_CLIENT_ID,
           clientSecret: process.env.GOOGLE_CLIENT_SECRET,
           callbackURL: `${BACKEND_URL}/auth/google/callback`,
-          passReqToCallback: true,
+          scope: ['profile', 'email'],
         },
-        async (
-          req: Request,
-          accessToken: string,
-          refreshToken: string,
-          profile: any,
-          done: any
-        ) => {
+        async (accessToken: string, refreshToken: string, profile: any, done: any) => {
           try {
             const email = profile.emails?.[0]?.value;
             if (!email) {
@@ -79,122 +95,72 @@ export const configurePassport = () => {
             return done(null, user);
           } catch (error) {
             console.error("Google 로그인 처리 중 오류:", error);
-            return done(error);
+            return done(error as Error);
           }
         }
       )
     );
   }
 
-  // LINE 전략 설정
-  if (!process.env.LINE_CHANNEL_ID || !process.env.LINE_CHANNEL_SECRET) {
-    console.warn("LINE OAuth credentials are not set");
-  } else {
+  // Line OAuth 전략
+  if (process.env.LINE_CHANNEL_ID && process.env.LINE_CHANNEL_SECRET) {
     passport.use(
-      "line",
       new LineStrategy(
         {
-          channelID: process.env.LINE_CHANNEL_ID || "",
-          channelSecret: process.env.LINE_CHANNEL_SECRET || "",
-          callbackURL: `${BACKEND_URL}/auth/line/callback`,
-          scope: "profile openid email",
-          passReqToCallback: true,
+          channelID: process.env.LINE_CHANNEL_ID!,
+          channelSecret: process.env.LINE_CHANNEL_SECRET!,
+          callbackURL: `${process.env.BACKEND_URL}/auth/line/callback`,
+          scope: 'profile openid email'
         },
-        async (
-          req: Request,
-          accessToken: string,
-          refreshToken: string,
-          profile: any,
-          done: any
-        ) => {
+        async (accessToken: string, refreshToken: string, profile: any, done: any) => {
           try {
-            console.log("LINE 로그인 콜백 - 프로필:", profile);
-
-            // LINE ID를 기반으로 이메일 생성
-            const email = `line_${profile.id}@line.user`;
-
-            let user = await User.findOne({
-              $or: [{ email }, { lineId: profile.id }],
-            });
-
+            let user = await User.findOne({ 'line.id': profile.id });
+            
             if (!user) {
-              const randomPassword = crypto.randomBytes(20).toString("hex");
               user = await User.create({
-                email,
-                displayName:
-                  profile.displayName || profile._json?.name || "라인사용자",
-                password: randomPassword,
-                photo:
-                  profile.photos?.[0]?.value || profile._json?.picture || "",
-                isAdmin: false,
-                lineId: profile.id,
+                line: {
+                  id: profile.id,
+                  accessToken
+                },
+                displayName: profile.displayName,
+                email: profile.emails?.[0]?.value,
+                isAdmin: false
               });
-            } else if (!user.lineId) {
-              user = await User.findByIdAndUpdate(
-                user._id,
-                { lineId: profile.id },
-                { new: true }
-              );
             }
-
-            // JWT 토큰 생성
-            const {
-              accessToken: jwtAccessToken,
-              refreshToken: jwtRefreshToken,
-            } = generateTokens(user);
-
-            // 사용자 정보와 토큰을 함께 반환
-            return done(null, {
-              user,
-              tokens: {
-                accessToken: jwtAccessToken,
-                refreshToken: jwtRefreshToken,
-              },
-            });
+            
+            return done(null, user);
           } catch (error) {
-            console.error("LINE 로그인 처리 중 오류:", error);
-            return done(error);
+            return done(error as Error);
           }
         }
       )
     );
   }
 
-  // JWT 전략 설정
+  // JWT 전략
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET이 설정되지 않았습니다.');
+  }
+
   passport.use(
-    "jwt",
     new JwtStrategy(
       {
         jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-        secretOrKey: process.env.JWT_SECRET || "your-secret-key",
+        secretOrKey: process.env.JWT_SECRET,
       },
-      async (jwtPayload: any, done: any) => {
+      async (payload: any, done: any) => {
         try {
-          const user = await User.findById(jwtPayload.userId);
+          const user = await User.findById(payload.userId);
           if (!user) {
             return done(null, false);
           }
           return done(null, user);
         } catch (error) {
-          return done(error, false);
+          return done(error as Error);
         }
       }
     )
   );
-
-  // 세션 직렬화 설정
-  passport.serializeUser((user: any, done) => {
-    done(null, user.id);
-  });
-
-  passport.deserializeUser(async (id: string, done) => {
-    try {
-      const user = await User.findById(id);
-      done(null, user);
-    } catch (error) {
-      done(error);
-    }
-  });
 
   return passport;
 };

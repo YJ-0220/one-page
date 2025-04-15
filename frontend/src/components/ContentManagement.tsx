@@ -5,7 +5,7 @@ const ContentManagement: React.FC = () => {
   const {
     activeTab,
     setActiveTab,
-    popupImages,
+    popups,
     slideImages,
     testimonials,
     isUploading,
@@ -146,7 +146,7 @@ const ContentManagement: React.FC = () => {
             <div className="px-6 py-4 border-b border-gray-200">
               <h4 className="text-lg font-medium text-gray-800">이벤트 팝업 이미지 목록</h4>
             </div>
-            {popupImages.length === 0 ? (
+            {!popups || popups.length === 0 ? (
               <div className="p-8 text-center text-gray-500">등록된 팝업 이미지가 없습니다.</div>
             ) : (
               <div className="overflow-x-auto">
@@ -171,7 +171,7 @@ const ContentManagement: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {popupImages.map((image) => (
+                    {popups.map((image) => (
                       <tr key={image._id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex-shrink-0 h-20 w-32 overflow-hidden rounded-md">
@@ -355,7 +355,7 @@ const ContentManagement: React.FC = () => {
                       name: e.target.value,
                     })
                   }
-                  className="w-full p-2 border rounded"
+                  className="w-full p-2 border border-gray-300 rounded"
                   required
                 />
               </div>
@@ -370,7 +370,7 @@ const ContentManagement: React.FC = () => {
                       position: e.target.value,
                     })
                   }
-                  className="w-full p-2 border rounded"
+                  className="w-full p-2 border border-gray-300 rounded"
                   required
                 />
               </div>
@@ -384,7 +384,7 @@ const ContentManagement: React.FC = () => {
                       description: e.target.value,
                     })
                   }
-                  className="w-full p-2 border rounded"
+                  className="w-full p-2 border border-gray-300 rounded"
                   rows={3}
                   required
                 />
@@ -399,7 +399,7 @@ const ContentManagement: React.FC = () => {
                       career: e.target.value,
                     })
                   }
-                  className="w-full p-2 border rounded"
+                  className="w-full p-2 border border-gray-300 rounded"
                   rows={3}
                   required
                 />
@@ -413,33 +413,50 @@ const ContentManagement: React.FC = () => {
             </button>
           </form>
 
-          <div className="overflow-x-auto">
-            <div className="grid grid-cols-4 gap-4 mb-4">
+          {/* 인물 소개 상세 목록 */}
+          <div className="mt-8">
+            <h3 className="text-xl font-semibold mb-4">인물 소개 상세 목록</h3>
+            <div className="grid grid-cols-1 gap-4">
               {testimonials.map((testimonial) => (
-                <div key={testimonial._id} className="relative group">
-                  <img
-                    src={testimonial.imageUrl}
-                    alt={testimonial.name}
-                    className="w-full h-48 object-cover rounded"
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-center items-center text-white p-4">
-                    <p className="text-lg font-semibold mb-2">{testimonial.name}</p>
-                    <p className="text-sm mb-2">{testimonial.position}</p>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleToggleActive(testimonial._id, false, testimonial.isActive)}
-                        className={`px-3 py-1 rounded text-sm ${
-                          testimonial.isActive ? "bg-green-500" : "bg-gray-300"
-                        }`}
-                      >
-                        {testimonial.isActive ? "활성" : "비활성"}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteTestimonial(testimonial._id)}
-                        className="px-3 py-1 rounded bg-red-500 text-sm"
-                      >
-                        삭제
-                      </button>
+                <div key={testimonial._id} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="flex flex-col md:flex-row">
+                    <div className="md:w-1/4 h-48 md:h-auto">
+                      <img
+                        src={testimonial.imageUrl}
+                        alt={testimonial.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="p-4 md:w-3/4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="text-xl font-bold">{testimonial.name}</h4>
+                          <p className="text-gray-600">{testimonial.position}</p>
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          testimonial.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                        }`}>
+                          {testimonial.isActive ? "활성" : "비활성"}
+                        </span>
+                      </div>
+                      <div className="mt-2">
+                        <p className="text-gray-700"><span className="font-semibold">설명:</span> {testimonial.description}</p>
+                        <p className="text-gray-700"><span className="font-semibold">경력:</span> {testimonial.career}</p>
+                      </div>
+                      <div className="mt-4 flex space-x-2">
+                        <button
+                          onClick={() => handleToggleActive(testimonial._id, false, testimonial.isActive)}
+                          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                        >
+                          {testimonial.isActive ? "비활성화" : "활성화"}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTestimonial(testimonial._id)}
+                          className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                        >
+                          삭제
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

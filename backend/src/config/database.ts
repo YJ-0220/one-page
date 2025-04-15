@@ -33,4 +33,12 @@ const testConnection = async () => {
 
 testConnection();
 
-export { sequelize }; 
+export { sequelize };
+
+export const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI!);
+  } catch (error) {
+    process.exit(1);
+  }
+}; 

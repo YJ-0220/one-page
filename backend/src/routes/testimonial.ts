@@ -7,34 +7,23 @@ const router = express.Router();
 // 인물 소개 생성
 router.post('/', upload.single('image'), async (req: any, res) => {
   try {
-    console.log('인물 소개 생성 요청:', req.body);
-    console.log('업로드된 파일:', req.file);
-
-    const { name, position, description, career, order } = req.body;
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
-
-    if (!imageUrl) {
-      return res.status(400).json({ message: '이미지는 필수입니다.' });
+    if (!req.file) {
+      return res.status(400).json({ error: '이미지 파일이 필요합니다.' });
     }
 
     const testimonial = new Testimonial({
-      name,
-      position,
-      imageUrl,
-      description,
-      career: career || '',
-      order: order ? parseInt(order) : 0,
-      isActive: true
+      name: req.body.name,
+      position: req.body.position,
+      description: req.body.description,
+      career: req.body.career,
+      imageUrl: req.file.path,
+      isActive: req.body.isActive === 'true'
     });
 
-    console.log('저장할 데이터:', testimonial);
-
     await testimonial.save();
-    console.log('저장된 인물 소개:', testimonial);
     res.status(201).json(testimonial);
-  } catch (error: any) {
-    console.error('인물 소개 생성 에러:', error);
-    res.status(500).json({ message: '인물 소개 생성에 실패했습니다.', error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: '인물 소개 생성 중 오류가 발생했습니다.' });
   }
 });
 
@@ -63,44 +52,31 @@ router.get('/active', async (req, res) => {
 // 인물 소개 수정
 router.put('/:id', upload.single('image'), async (req: any, res) => {
   try {
-    console.log('인물 소개 수정 요청:', req.body);
-    console.log('업로드된 파일:', req.file);
-
-    const { id } = req.params;
-    const { name, position, description, career, order, isActive } = req.body;
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
-
-    const testimonial = await Testimonial.findById(id);
-    if (!testimonial) {
-      return res.status(404).json({ message: '인물 소개를 찾을 수 없습니다.' });
-    }
-
     const updateData: any = {
-      name,
-      position,
-      description,
-      career: career || testimonial.career,
-      order: order ? parseInt(order) : testimonial.order,
-      isActive: isActive !== undefined ? isActive : testimonial.isActive
+      name: req.body.name,
+      position: req.body.position,
+      description: req.body.description,
+      career: req.body.career,
+      isActive: req.body.isActive === 'true'
     };
 
-    if (imageUrl) {
-      updateData.imageUrl = imageUrl;
+    if (req.file) {
+      updateData.imageUrl = req.file.path;
     }
 
-    console.log('업데이트할 데이터:', updateData);
-
     const updatedTestimonial = await Testimonial.findByIdAndUpdate(
-      id,
+      req.params.id,
       updateData,
       { new: true }
     );
 
-    console.log('업데이트된 인물 소개:', updatedTestimonial);
+    if (!updatedTestimonial) {
+      return res.status(404).json({ error: '인물 소개를 찾을 수 없습니다.' });
+    }
+
     res.json(updatedTestimonial);
-  } catch (error: any) {
-    console.error('인물 소개 수정 에러:', error);
-    res.status(500).json({ message: '인물 소개 수정에 실패했습니다.', error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: '인물 소개 수정 중 오류가 발생했습니다.' });
   }
 });
 

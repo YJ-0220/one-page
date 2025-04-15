@@ -33,3 +33,5 @@ backend/.env.development
 backend/.env.production
 backend/.env.local
 frontend/.env
+
+backend/uploads/*

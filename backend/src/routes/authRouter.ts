@@ -26,8 +26,12 @@ declare module "express-session" {
 
 // 환경변수 설정
 const router = express.Router();
-const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3000";
+const CLIENT_URL = process.env.CLIENT_URL;
+const BACKEND_URL = process.env.BACKEND_URL;
+
+if (!CLIENT_URL || !BACKEND_URL) {
+  throw new Error('CLIENT_URL 또는 BACKEND_URL이 설정되지 않았습니다.');
+}
 
 // 소셜 로그인 콜백 URL 설정
 const GOOGLE_CALLBACK_URL = `${BACKEND_URL}/auth/google/callback`;
@@ -185,7 +189,6 @@ router.get(
   async (req, res) => {
     try {
       if (!req.user) {
-        // state 파라미터에서 콜백 URL 가져오기
         const callbackUrl = req.query.state as string;
         return res.redirect(
           `${callbackUrl || CLIENT_URL}/#/login?error=인증 실패`
@@ -198,8 +201,14 @@ router.get(
       // state 파라미터에서 콜백 URL 가져오기
       const callbackUrl = req.query.state as string;
       if (callbackUrl) {
+        const userData = {
+          _id: user._id,
+          displayName: user.displayName,
+          email: user.email,
+          isAdmin: user.isAdmin
+        };
         return res.redirect(
-          `${callbackUrl}?accessToken=${accessToken}&refreshToken=${refreshToken}`
+          `${callbackUrl}?accessToken=${accessToken}&refreshToken=${refreshToken}&user=${encodeURIComponent(JSON.stringify(userData))}`
         );
       }
 
@@ -209,16 +218,18 @@ router.get(
           <body>
             <script>
               try {
+                const userData = {
+                  _id: "${user._id}",
+                  displayName: "${user.displayName}",
+                  email: "${user.email}",
+                  isAdmin: ${user.isAdmin}
+                };
+                
                 window.opener.postMessage({
                   type: "LOGIN_SUCCESS",
                   accessToken: "${accessToken}",
                   refreshToken: "${refreshToken}",
-                  user: {
-                    _id: "${user._id}",
-                    displayName: "${user.displayName}",
-                    email: "${user.email}",
-                    isAdmin: ${user.isAdmin}
-                  }
+                  user: userData
                 }, "*");
                 
                 // 창 닫기 시도
@@ -248,29 +259,17 @@ router.get(
 );
 
 // LINE 콜백 엔드포인트
-router.get(
-  "/line/callback",
-  (req, res, next) => {
-    console.log('LINE 콜백 요청 받음:', {
-      query: req.query,
-      headers: req.headers
-    });
-    
-    passport.authenticate("line", { 
-      session: false,
-      failureRedirect: `${CLIENT_URL}/#/login?error=인증 실패`
-    })(req, res, next);
-  },
-  (req, res) => {
+router.get('/line/callback',
+  passport.authenticate('line', { failureRedirect: '/login' }),
+  async (req: any, res: any) => {
     try {
-      console.log('LINE 인증 성공:', req.user);
-      
       if (!req.user) {
         return res.redirect(`${CLIENT_URL}/#/login?error=인증 실패`);
       }
 
-      const { user, tokens } = req.user as any;
-      
+      const user = req.user as any;
+      const { accessToken, refreshToken } = generateTokens(user);
+
       // 팝업 창에 메시지 전달
       const html = `
         <html>
@@ -279,8 +278,8 @@ router.get(
               try {
                 window.opener.postMessage({
                   type: "LOGIN_SUCCESS",
-                  accessToken: "${tokens.accessToken}",
-                  refreshToken: "${tokens.refreshToken}",
+                  accessToken: "${accessToken}",
+                  refreshToken: "${refreshToken}",
                   user: {
                     _id: "${user._id}",
                     displayName: "${user.displayName}",
@@ -288,6 +287,8 @@ router.get(
                     isAdmin: ${user.isAdmin}
                   }
                 }, "*");
+                
+                // 창 닫기 시도
                 window.close();
               } catch (e) {
                 console.error('팝업창 닫기 실패:', e);

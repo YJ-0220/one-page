@@ -41,14 +41,11 @@ const HeroSection: React.FC = () => {
         className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
         style={{ backgroundImage: `url(${backgroundImages[currentIndex].imageUrl})` }}
       />
-      <div className="absolute inset-0 bg-black bg-opacity-50" />
+      <div className="absolute inset-0 bg-[#00000050]" />
       <div className="relative h-full flex items-center justify-center text-center text-white">
         <div className="max-w-3xl px-4">
-          <h1 className="text-5xl font-bold mb-6">{backgroundImages[currentIndex].title}</h1>
+          <h1 className="text-5xl font-bold mb-8">최고의 서비스를 제공합니다</h1>
           <p className="text-xl mb-8">최고의 서비스를 제공합니다</p>
-          <button className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition-colors">
-            시작하기
-          </button>
         </div>
       </div>
     </section>

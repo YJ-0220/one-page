@@ -8,44 +8,34 @@ const router = express.Router();
 // 이벤트 팝업 생성
 router.post('/', upload.single('image'), async (req: Request, res: Response) => {
   try {
-    console.log('이벤트 팝업 생성 요청:', req.body);
-    console.log('업로드된 파일:', req.file);
-
-    const { title, description, link, startDate, endDate } = req.body;
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
-
-    if (!imageUrl) {
-      return res.status(400).json({ message: '이미지는 필수입니다.' });
+    if (!req.file) {
+      return res.status(400).json({ error: '이미지 파일이 필요합니다.' });
     }
 
     const eventPopup = new EventPopup({
-      title,
-      description,
-      link,
-      imageUrl,
-      startDate: startDate ? new Date(startDate) : null,
-      endDate: endDate ? new Date(endDate) : null,
+      title: req.body.title,
+      description: req.body.description,
+      imageUrl: req.file.path,
+      link: req.body.link,
+      startDate: req.body.startDate,
+      endDate: req.body.endDate,
+      isActive: req.body.isActive === 'true'
     });
 
     await eventPopup.save();
-    console.log('생성된 이벤트 팝업:', eventPopup);
     res.status(201).json(eventPopup);
-  } catch (error: any) {
-    console.error('이벤트 팝업 생성 에러:', error);
-    res.status(500).json({ message: '이벤트 팝업 생성에 실패했습니다.', error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: '이벤트 팝업 생성 중 오류가 발생했습니다.' });
   }
 });
 
 // 이벤트 팝업 목록 조회
-router.get('/', async (req, res) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
-    console.log('이벤트 팝업 목록 조회 요청');
     const eventPopups = await EventPopup.find().sort({ createdAt: -1 });
-    console.log('조회된 이벤트 팝업 수:', eventPopups.length);
     res.json(eventPopups);
-  } catch (error: any) {
-    console.error('이벤트 팝업 조회 에러:', error);
-    res.status(500).json({ message: '이벤트 팝업 조회에 실패했습니다.', error: error.message });
+  } catch (error) {
+    res.status(500).json({ error: '이벤트 팝업 목록 조회 중 오류가 발생했습니다.' });
   }
 });
 

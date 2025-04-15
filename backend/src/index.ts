@@ -11,26 +11,43 @@ import bcrypt from "bcryptjs";
 import path from "path";
 import session from "express-session";
 import MongoStore from "connect-mongo";
-import eventPopupRouter from './routes/eventPopup';
-import imageSlideRouter from './routes/imageSlide';
-import testimonialRouter from './routes/testimonial';
-import fs from 'fs';
+import eventPopupRouter from "./routes/eventPopup";
+import imageSlideRouter from "./routes/imageSlide";
+import testimonialRouter from "./routes/testimonial";
+import fs from "fs";
+import { connectDB } from "./db/db";
 
 // 환경변수 로드
-dotenv.config();
+const envFile =
+  process.env.NODE_ENV === "production"
+    ? ".env.production"
+    : ".env.development";
+dotenv.config({ path: path.resolve(process.cwd(), envFile) });
 
 // 업로드 디렉토리 생성
-const uploadDir = path.join(__dirname, '../uploads');
+const uploadDir = path.join(__dirname, "../uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// 환경 변수 설정
-const PORT = process.env.PORT || 3000;
-const MONGODB_URI =
-  process.env.MONGODB_URI || "mongodb://localhost:27017/one-page";
-const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3000";
+// 필수 환경변수 검증
+const requiredEnvVars = [
+  "CLIENT_URL",
+  "BACKEND_URL",
+  "MONGODB_URI",
+] as const;
+
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    console.error(`필수 환경변수 ${envVar}가 설정되지 않았습니다.`);
+  process.exit(1);
+}
+}
+
+const PORT = process.env.PORT || 3001;
+const MONGODB_URI = process.env.MONGODB_URI as string;
+const CLIENT_URL = process.env.CLIENT_URL as string;
+const BACKEND_URL = process.env.BACKEND_URL as string;
 
 // Express 앱 초기화
 const app = express();
@@ -42,17 +59,17 @@ app.use(express.urlencoded({ extended: true }));
 // 세션 미들웨어 설정
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "your-secret-key",
+    secret: "temp-session-secret",
     resave: false,
-    saveUninitialized: true, // 세션 저장 여부
+    saveUninitialized: true,
     store: MongoStore.create({
-      mongoUrl: process.env.MONGODB_URI, // Mongoose 연결 URI 그대로 사용
+      mongoUrl: MONGODB_URI,
       collectionName: "sessions",
     }),
     cookie: {
-      secure: process.env.NODE_ENV === 'production', // 프로덕션 환경에서만 secure 활성화
-      sameSite: "none", // 크로스 도메인 요청을 위해 none으로 설정
-      maxAge: 5 * 60 * 1000, // 5분으로 제한 (LINE 로그인에 필요한 최소 시간)
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "none",
+      maxAge: 5 * 60 * 1000, // 5분
     },
   })
 );
@@ -67,7 +84,7 @@ app.use((req, res, next) => {
 // CORS 설정
 app.use(
   cors({
-    origin: [CLIENT_URL, 'https://yj-0220.github.io'],
+    origin: CLIENT_URL,
     credentials: true,
   })
 );
@@ -81,12 +98,12 @@ app.use(passport.session());
 app.use("/auth", authRouter);
 app.use("/contact", contactRouter);
 app.use("/stats", statsRouter);
-app.use('/event-popup', eventPopupRouter);
-app.use('/image-slide', imageSlideRouter);
-app.use('/testimonial', testimonialRouter);
+app.use("/event-popup", eventPopupRouter);
+app.use("/image-slide", imageSlideRouter);
+app.use("/testimonial", testimonialRouter);
 
 // 정적 파일 제공 설정
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // 기본 라우트
 app.get("/", (req, res) => {
@@ -98,12 +115,11 @@ const startServer = async () => {
   try {
     // MongoDB 연결
     await mongoose.connect(MONGODB_URI);
-    console.log("MongoDB 연결 성공!");
 
     // 기본 관리자 생성 (최초 실행 시)
     const adminExists = await User.findOne({ isAdmin: true });
     if (!adminExists) {
-      const adminPassword = process.env.ADMIN_DEFAULT_PASSWORD || "admin123";
+      const adminPassword = process.env.ADMIN_DEFAULT_PASSWORD as string;
       const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
     await User.create({
@@ -111,18 +127,14 @@ const startServer = async () => {
       email: "admin@example.com",
         password: hashedPassword,
       isAdmin: true,
-      });
+    });
+      console.log("기본 관리자 계정이 생성되었습니다.");
     }
 
     // 서버 시작
-    app.listen(PORT, () => {
-      console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
-      console.log("환경 변수:");
-      console.log("- PORT:", PORT);
-      console.log("- CLIENT_URL:", CLIENT_URL);
-      console.log("- BACKEND_URL:", BACKEND_URL);
-    });
+    app.listen(PORT, () => {});
   } catch (error) {
+    console.error("서버 시작 중 오류 발생:", error);
     process.exit(1);
   }
 };
