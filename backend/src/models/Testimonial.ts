@@ -9,10 +9,6 @@ const testimonialSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  company: {
-    type: String,
-    required: true,
-  },
   imageUrl: {
     type: String,
     required: true,
@@ -21,9 +17,10 @@ const testimonialSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  career: [{
+  career: {
     type: String,
-  }],
+    default: '',
+  },
   isActive: {
     type: Boolean,
     default: true,
@@ -36,6 +33,4 @@ const testimonialSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-const Testimonial = mongoose.model('Testimonial', testimonialSchema);
-
-export default Testimonial;
+export default mongoose.model('Testimonial', testimonialSchema);

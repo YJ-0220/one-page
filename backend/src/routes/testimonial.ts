@@ -1,14 +1,16 @@
 import express from 'express';
 import { upload } from '../config/multer';
-import { isAuthenticated } from '../middleware/auth';
 import Testimonial from '../models/Testimonial';
 
 const router = express.Router();
 
 // 인물 소개 생성
-router.post('/', isAuthenticated, upload.single('image'), async (req: any, res) => {
+router.post('/', upload.single('image'), async (req: any, res) => {
   try {
-    const { name, position, company, description, career, order } = req.body;
+    console.log('인물 소개 생성 요청:', req.body);
+    console.log('업로드된 파일:', req.file);
+
+    const { name, position, description, career, order } = req.body;
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
     if (!imageUrl) {
@@ -18,14 +20,17 @@ router.post('/', isAuthenticated, upload.single('image'), async (req: any, res) 
     const testimonial = new Testimonial({
       name,
       position,
-      company,
       imageUrl,
       description,
-      career: career ? JSON.parse(career) : [],
+      career: career || '',
       order: order ? parseInt(order) : 0,
+      isActive: true
     });
 
+    console.log('저장할 데이터:', testimonial);
+
     await testimonial.save();
+    console.log('저장된 인물 소개:', testimonial);
     res.status(201).json(testimonial);
   } catch (error: any) {
     console.error('인물 소개 생성 에러:', error);
@@ -56,10 +61,13 @@ router.get('/active', async (req, res) => {
 });
 
 // 인물 소개 수정
-router.put('/:id', isAuthenticated, upload.single('image'), async (req: any, res) => {
+router.put('/:id', upload.single('image'), async (req: any, res) => {
   try {
+    console.log('인물 소개 수정 요청:', req.body);
+    console.log('업로드된 파일:', req.file);
+
     const { id } = req.params;
-    const { name, position, company, description, career, order, isActive } = req.body;
+    const { name, position, description, career, order, isActive } = req.body;
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
 
     const testimonial = await Testimonial.findById(id);
@@ -70,16 +78,17 @@ router.put('/:id', isAuthenticated, upload.single('image'), async (req: any, res
     const updateData: any = {
       name,
       position,
-      company,
       description,
-      career: career ? JSON.parse(career) : testimonial.career,
+      career: career || testimonial.career,
       order: order ? parseInt(order) : testimonial.order,
-      isActive,
+      isActive: isActive !== undefined ? isActive : testimonial.isActive
     };
 
     if (imageUrl) {
       updateData.imageUrl = imageUrl;
     }
+
+    console.log('업데이트할 데이터:', updateData);
 
     const updatedTestimonial = await Testimonial.findByIdAndUpdate(
       id,
@@ -87,6 +96,7 @@ router.put('/:id', isAuthenticated, upload.single('image'), async (req: any, res
       { new: true }
     );
 
+    console.log('업데이트된 인물 소개:', updatedTestimonial);
     res.json(updatedTestimonial);
   } catch (error: any) {
     console.error('인물 소개 수정 에러:', error);
@@ -95,7 +105,7 @@ router.put('/:id', isAuthenticated, upload.single('image'), async (req: any, res
 });
 
 // 인물 소개 삭제
-router.delete('/:id', isAuthenticated, async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const testimonial = await Testimonial.findById(id);

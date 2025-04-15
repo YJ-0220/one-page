@@ -1,6 +1,5 @@
 import express from 'express';
 import { upload } from '../config/multer';
-import { isAuthenticated } from '../middleware/auth';
 import ImageSlide from '../models/ImageSlide';
 import { Request, Response } from 'express';
 

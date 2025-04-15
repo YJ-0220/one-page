@@ -81,10 +81,9 @@ app.use(passport.session());
 app.use("/auth", authRouter);
 app.use("/contact", contactRouter);
 app.use("/stats", statsRouter);
-app.use('/api/auth', authRouter);
-app.use('/api/event-popup', eventPopupRouter);
-app.use('/api/image-slide', imageSlideRouter);
-app.use('/api/testimonial', testimonialRouter);
+app.use('/event-popup', eventPopupRouter);
+app.use('/image-slide', imageSlideRouter);
+app.use('/testimonial', testimonialRouter);
 
 // 정적 파일 제공 설정
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));

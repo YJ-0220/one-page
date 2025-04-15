@@ -1,6 +1,5 @@
 import express from 'express';
 import { upload } from '../config/multer';
-import { isAuthenticated } from '../middleware/auth';
 import EventPopup from '../models/EventPopup';
 import { Request, Response } from 'express';
 
