@@ -67,7 +67,7 @@ app.use((req, res, next) => {
 // CORS 설정
 app.use(
   cors({
-    origin: CLIENT_URL,
+    origin: [CLIENT_URL, 'https://yj-0220.github.io'],
     credentials: true,
   })
 );

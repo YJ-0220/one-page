@@ -15,7 +15,6 @@ const Login = () => {
         <LoginForm
           onLogin={handleLoginSuccess}
           onClose={() => navigate("/")}
-          modalMode={false}
           socialOnly={false}
         />
       </div>
