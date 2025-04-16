@@ -1,6 +1,5 @@
-import React, { useState, Dispatch, SetStateAction } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import useAuth from "@/hooks/useAuth";
+import React, { Dispatch, SetStateAction } from "react";
+import { useNavigate } from "react-router-dom";
 import LogoIcon from "@/assets/faviconImg.png";
 import Navbar from "@/components/Navbar";
 
@@ -13,17 +12,18 @@ export interface HeaderProps {
   activePage: string;
   setActivePage: Dispatch<SetStateAction<string>>;
   isAdmin: boolean;
-  userId: string | null;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
+  username,
+  email,
+  photoURL,
   activePage, 
   setActivePage, 
   isAdmin, 
   onLogin, 
-  onLogout 
+  onLogout,
 }) => {
-  const { user } = useAuth();
   const navigate = useNavigate();
 
   return (
@@ -45,7 +45,7 @@ const Header: React.FC<HeaderProps> = ({
             <Navbar activePage={activePage} setActivePage={setActivePage} />
           </div>
           <div className="flex items-center justify-end flex-shrink-0 ml-4">
-            {user ? (
+            {username ? (
               <div className="flex items-center gap-2">
                 {isAdmin && (
                   <button

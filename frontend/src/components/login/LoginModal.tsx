@@ -1,4 +1,3 @@
-import { useState } from "react";
 import LoginForm from "./LoginForm";
 
 interface LoginModalProps {
@@ -26,7 +25,6 @@ const LoginModal = ({ isOpen, onClose, onLogin }: LoginModalProps) => {
             <LoginForm 
               onLogin={onLogin} 
               onClose={onClose} 
-              modalMode={true}
               socialOnly={true}
             />
           </div>

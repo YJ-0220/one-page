@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getUsersList, toggleUserAdminRole, deleteUserById, User } from '../api';
+import { getUsersList, toggleUserAdminRole, deleteUserById, User } from '../../api';
 
 const UserManagement = () => {
   const [users, setUsers] = useState<User[]>([]);

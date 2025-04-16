@@ -1,24 +1,25 @@
 import React from 'react';
-import { usePopup } from '../hooks/usePopup';
+import { useContentManagement } from '../hooks/useContentManagement';
 
 const EventPopupModal: React.FC = () => {
   const {
     currentPopup,
-    isOpen,
-    handleClose,
+    isPopupOpen,
+    handleClosePopup,
     handleDontShowToday,
-    handleNext
-  } = usePopup();
+    handleNextPopup,
+    popups
+  } = useContentManagement();
 
-  if (!isOpen || !currentPopup) return null;
+  if (!isPopupOpen || !currentPopup) return null;
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-      <div className="fixed inset-0 bg-[#00000050]" onClick={handleClose}></div>
+      <div className="fixed inset-0 bg-[#00000050]" onClick={handleClosePopup}></div>
       <div className="relative bg-white rounded-lg shadow-xl w-[400px] h-[600px] flex flex-col">
         <div className="absolute top-4 right-4 z-10">
           <button
-            onClick={handleClose}
+            onClick={handleClosePopup}
             className="text-gray-500 hover:text-gray-700 focus:outline-none"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -44,10 +45,10 @@ const EventPopupModal: React.FC = () => {
           </button>
         </div>
 
-        {currentPopup.link && (
+        {popups.length > 1 && (
           <div className="absolute bottom-4 right-4">
             <button
-              onClick={handleNext}
+              onClick={handleNextPopup}
               className="bg-white bg-opacity-80 rounded-full p-2 hover:bg-opacity-100"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

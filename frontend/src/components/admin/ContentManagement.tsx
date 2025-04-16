@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { useContentManagement } from "../hooks/useContentManagement";
+import { useContentManagement } from "../../hooks/useContentManagement";
 
 const ContentManagement: React.FC = () => {
   const {
@@ -16,9 +16,6 @@ const ContentManagement: React.FC = () => {
     testimonialFormData,
     setTestimonialFormData,
     fetchImages,
-    handlePopupFileChange,
-    handleSlideFileChange,
-    handleTestimonialFileChange,
     handlePopupImageSubmit,
     handleSlideImageSubmit,
     handleTestimonialSubmit,
@@ -26,6 +23,9 @@ const ContentManagement: React.FC = () => {
     handleDeleteSlideImage,
     handleDeleteTestimonial,
     handleToggleActive,
+    handlePopupFileChange,
+    handleSlideFileChange,
+    handleTestimonialFileChange,
   } = useContentManagement();
 
   useEffect(() => {
@@ -88,11 +88,23 @@ const ContentManagement: React.FC = () => {
                     <div className="flex items-center">
                       <input
                         type="file"
+                        id="popup-image-upload"
                         accept="image/*"
                         onChange={handlePopupFileChange}
-                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                        required
+                        className="hidden"
                       />
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('popup-image-upload')?.click()}
+                        className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      >
+                        이미지 선택
+                      </button>
+                      {popupFormData.imageFile && (
+                        <span className="ml-2 text-sm text-gray-500">
+                          {popupFormData.imageFile.name}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div>
@@ -225,11 +237,23 @@ const ContentManagement: React.FC = () => {
                     <div className="flex items-center">
                       <input
                         type="file"
+                        id="slide-image-upload"
                         accept="image/*"
                         onChange={handleSlideFileChange}
-                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                        required
+                        className="hidden"
                       />
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('slide-image-upload')?.click()}
+                        className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      >
+                        이미지 선택
+                      </button>
+                      {slideFormData.image && (
+                        <span className="ml-2 text-sm text-gray-500">
+                          {slideFormData.image.name}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div>
@@ -333,15 +357,27 @@ const ContentManagement: React.FC = () => {
           <form onSubmit={handleTestimonialSubmit} className="mb-8">
             <div className="grid grid-cols-1 gap-4">
               <div className="col-span-full">
-                <label className="block text-sm font-medium text-gray-700 mb-2">이미지</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">이미지 파일</label>
                 <div className="flex items-center">
                   <input
                     type="file"
+                    id="testimonial-image-upload"
                     accept="image/*"
                     onChange={handleTestimonialFileChange}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                    required
+                    className="hidden"
                   />
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById('testimonial-image-upload')?.click()}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    이미지 선택
+                  </button>
+                  {testimonialFormData.image && (
+                    <span className="ml-2 text-sm text-gray-500">
+                      {testimonialFormData.image.name}
+                    </span>
+                  )}
                 </div>
               </div>
               <div>

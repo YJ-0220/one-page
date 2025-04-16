@@ -3,6 +3,7 @@ import AboutSection from "@/components/sections/AboutSection";
 import ServicesSection from "@/components/sections/ServicesSection";
 import TestimonialsSection from "@/components/sections/TestimonialsSection";
 import ContactSection from "@/components/sections/ContactSection";
+import EventPopupModal from "@/components/EventPopupModal";
 
 const HomePage = () => {
   return (
@@ -22,6 +23,7 @@ const HomePage = () => {
       <div id="contact">
         <ContactSection />
       </div>
+      <EventPopupModal />
     </div>
   );
 };

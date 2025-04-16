@@ -1,6 +1,10 @@
 import express from "express";
 import Contact from "../models/Contact";
-import { isAdmin, requireAuth, requireAdmin } from "../middleware/authMiddleware";
+import {
+  isAdmin,
+  requireAuth,
+  requireAdmin,
+} from "../middleware/authMiddleware";
 
 const router = express.Router();
 
@@ -9,14 +13,17 @@ router.get("/unread-count", async (req, res) => {
   try {
     // 관리자 권한 확인
     if (!(await isAdmin(req))) {
-      return res.status(403).json({ message: '관리자 권한이 필요합니다.' });
+      return res.status(403).json({ message: "관리자 권한이 필요합니다." });
     }
 
     const count = await Contact.countDocuments({ isRead: false });
     res.json({ count });
-  } catch (error) {
+  } catch (error: any) {
     console.error("읽지 않은 문의 수 조회 오류:", error);
-    res.status(500).json({ message: "서버 오류가 발생했습니다." });
+    res.status(500).json({
+      message: "읽지 않은 문의 수 조회 오류가 발생했습니다.",
+      error: error.message,
+    });
   }
 });
 

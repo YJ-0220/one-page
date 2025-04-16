@@ -5,31 +5,25 @@ import Home from "@/pages/Home";
 import AdminPage from "@/pages/Admin";
 import Login from "@/pages/Login";
 import ContactWidget from "@/components/ContactWidget";
-import { setupAxiosInterceptors } from "./utils/authUtils";
 import useAuth from "./hooks/useAuth";
-import axios from "axios";
 import {
   Routes,
   Route,
   Navigate,
   useNavigate,
 } from "react-router-dom";
-import LoginSuccess from "./components/LoginSuccess";
-import EventPopupModal from './components/EventPopupModal';
-
-// axios 인터셉터 설정 (앱 시작 시 1회 실행)
-setupAxiosInterceptors();
+import LoginSuccess from "./components/login/LoginSuccess";
 
 // 페이지 로드 시 토큰 확인 및 설정
 const token = localStorage.getItem("authToken");
 if (token) {
-  axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  // 토큰이 있으면 API 요청 시 자동으로 설정됨
 }
 
 function App() {
   const [activePage, setActivePage] = useState<string>("home");
   const navigate = useNavigate();
-  const { user, isAuthenticated, loading, checkAuth, logout, handleSocialLoginSuccess } = useAuth();
+  const { user, isAuthenticated, loading, checkAuth, logout, handleSocialLogin } = useAuth();
   const isAdmin = user?.role === 'admin';
 
   // 로그인 핸들러 함수
@@ -59,7 +53,6 @@ function App() {
 
     if (hasToken) {
       try {
-        // URL에서 토큰 추출
         const urlObj = new URL(url);
         const params = new URLSearchParams(
           urlObj.hash.replace("#/", "?") || urlObj.search
@@ -69,21 +62,18 @@ function App() {
         const user = params.get("user");
 
         if (token) {
-          // 소셜 로그인 처리
-          handleSocialLoginSuccess({
+          handleSocialLogin({
             accessToken: token,
             refreshToken: refresh,
             user: user ? JSON.parse(user) : null,
-          }).then(result => {
+          }).then((result: any) => {
             if (result.success) {
-              // URL 파라미터 제거
               if (window.history && window.history.replaceState) {
                 const cleanUrl = window.location.href
                   .split("?")[0]
                   .split("#")[0];
                 window.history.replaceState({}, document.title, cleanUrl);
               }
-              // 홈으로 리다이렉트
               navigate("/");
             }
           });
@@ -92,29 +82,23 @@ function App() {
         console.error("URL 파라미터 처리 오류:", err);
       }
     }
-  }, [handleSocialLoginSuccess, navigate]);
+  }, [handleSocialLogin, navigate]);
 
   // 로컬 스토리지 이벤트 리스너로 소셜 로그인 상태 확인
   useEffect(() => {
     const handleStorageChange = async (event: StorageEvent) => {
       if (event.key === "loginSuccess" && event.newValue === "true") {
         try {
-          // 로그인 데이터 가져오기
           const loginData = JSON.parse(
             localStorage.getItem("loginData") || "{}"
           );
-          
-          // 소셜 로그인 처리
-          const result = await handleSocialLoginSuccess(loginData);
-          
+
+          const result = await handleSocialLogin(loginData);
+
           if (result.success) {
             setActivePage("home");
-            
-            // 로그인 상태 초기화
             localStorage.removeItem("loginSuccess");
             localStorage.removeItem("loginData");
-            
-            // 홈페이지로 리다이렉트
             navigate("/");
           }
         } catch (error) {
@@ -123,29 +107,21 @@ function App() {
       }
     };
 
-    // 이벤트 리스너 등록
     window.addEventListener("storage", handleStorageChange);
     
-    // 메시지 이벤트 리스너 추가
     const handleMessage = async (event: MessageEvent) => {
       if (event.data && event.data.type === 'LOGIN_SUCCESS') {
         try {
-          // localStorage에서 로그인 데이터 가져오기
           const loginData = JSON.parse(
             localStorage.getItem("loginData") || "{}"
           );
           
-          // 소셜 로그인 처리
-          const result = await handleSocialLoginSuccess(loginData);
+          const result = await handleSocialLogin(loginData);
           
           if (result.success) {
             setActivePage("home");
-            
-            // 로그인 상태 초기화
             localStorage.removeItem("loginSuccess");
             localStorage.removeItem("loginData");
-            
-            // 홈페이지로 리다이렉트
             navigate("/");
           }
         } catch (error) {
@@ -153,14 +129,14 @@ function App() {
         }
       }
     };
-    
+
     window.addEventListener("message", handleMessage);
 
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("message", handleMessage);
     };
-  }, [handleSocialLoginSuccess, navigate]);
+  }, [handleSocialLogin, navigate]);
 
   // 로딩 중이면 로딩 표시
   if (loading) {
@@ -168,42 +144,46 @@ function App() {
   }
 
   return (
-    <>
-      <EventPopupModal />
-      <div className="app">
-        <Header
-          username={user?.displayName || null}
-          email={user?.email || null}
-          photoURL={user?.photoURL || null}
-          onLogin={() => navigate("/login")}
-          onLogout={handleLogout}
-          activePage={activePage}
-          setActivePage={setActivePage}
-          isAdmin={isAdmin}
-          userId={user?._id || null}
-        />
-        <main className="main-content pt-20">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/login-success" element={<LoginSuccess />} />
-            <Route path="/auth/callback" element={<LoginSuccess />} />
-            <Route
-              path="/admin"
-              element={
-                isAuthenticated ? (
-                  <AdminPage onLogin={handleLogin} isLoggedIn={isAuthenticated} />
-                ) : (
-                  <Navigate to="/login" />
-                )
-              }
-            />
-          </Routes>
-        </main>
-        <ContactWidget />
-        <Footer />
-      </div>
-    </>
+    <div className="min-h-screen flex flex-col">
+      <Header
+        username={user?.displayName || null}
+        email={user?.email || null}
+        photoURL={user?.photoURL || null}
+        onLogin={() => navigate("/login")}
+        onLogout={handleLogout}
+        activePage={activePage}
+        setActivePage={setActivePage}
+        isAdmin={isAdmin}
+      />
+      <main className="flex-grow">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route
+            path="/admin"
+            element={
+              isAuthenticated && isAdmin ? (
+                <AdminPage onLogin={handleLogin} isLoggedIn={isAuthenticated} />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          />
+          <Route
+            path="/login"
+            element={
+              isAuthenticated ? (
+                <Navigate to="/" replace />
+              ) : (
+                <Login />
+              )
+            }
+          />
+          <Route path="/auth/callback" element={<LoginSuccess />} />
+        </Routes>
+      </main>
+      <Footer />
+      <ContactWidget />
+    </div>
   );
 }
 

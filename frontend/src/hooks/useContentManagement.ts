@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   createEventPopup,
   updateEventPopup,
@@ -11,62 +11,35 @@ import {
   createTestimonial,
   updateTestimonial,
   deleteTestimonial,
+  getEventPopups,
 } from "../api/content";
-import { usePopup } from "./usePopup";
-
-interface PopupFormData {
-  title: string;
-  description: string;
-  link: string;
-  startDate: Date | null;
-  endDate: Date | null;
-  image: File | null;
-}
-
-interface SlideFormData {
-  title: string;
-  description: string;
-  link: string;
-  order: number;
-  image: File | null;
-}
-
-interface TestimonialFormData {
-  name: string;
-  position: string;
-  description: string;
-  career: string;
-  order: number;
-  image: File | null;
-}
-
-interface PopupImage {
-  _id: string;
-  title: string;
-  description: string;
-  imageUrl: string;
-  isActive: boolean;
-  startDate?: string;
-  endDate?: string;
-  link?: string;
-}
+import {
+  EventPopup,
+  PopupFormData,
+  SlideFormData,
+  TestimonialFormData,
+} from "../types/content";
 
 export const useContentManagement = () => {
   const [activeTab, setActiveTab] = useState("popup");
   const [slideImages, setSlideImages] = useState<any[]>([]);
   const [testimonials, setTestimonials] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const { popups, fetchPopups } = usePopup();
-  
+
+  // 팝업 관련 상태
+  const [popups, setPopups] = useState<EventPopup[]>([]);
+  const [currentPopup, setCurrentPopup] = useState<EventPopup | null>(null);
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
+
   const [popupFormData, setPopupFormData] = useState<PopupFormData>({
     title: "",
     description: "",
     link: "",
-    startDate: null,
-    endDate: null,
-    image: null,
+    startDate: "",
+    endDate: "",
+    imageFile: undefined,
   });
-  
+
   const [slideFormData, setSlideFormData] = useState<SlideFormData>({
     title: "",
     description: "",
@@ -74,15 +47,82 @@ export const useContentManagement = () => {
     order: 0,
     image: null,
   });
-  
-  const [testimonialFormData, setTestimonialFormData] = useState<TestimonialFormData>({
-    name: "",
-    position: "",
-    description: "",
-    career: "",
-    order: 0,
-    image: null,
-  });
+
+  const [testimonialFormData, setTestimonialFormData] =
+    useState<TestimonialFormData>({
+      name: "",
+      position: "",
+      description: "",
+      career: "",
+      order: 0,
+      image: null,
+    });
+
+  // 팝업 데이터 가져오기
+  const fetchPopups = async (showAll: boolean = false) => {
+    try {
+      const dontShowUntil = localStorage.getItem("popupDontShowUntil");
+      if (!showAll && dontShowUntil) {
+        const dontShowDate = new Date(dontShowUntil);
+        const now = new Date();
+        if (now < dontShowDate) {
+          return;
+        }
+      }
+
+      const data = await getEventPopups();
+
+      if (showAll) {
+        setPopups(data);
+        return;
+      }
+
+      const now = new Date();
+      const activePopups = data.filter((popup: EventPopup) => {
+        if (!popup.isActive) return false;
+
+        const startDate = popup.startDate ? new Date(popup.startDate) : null;
+        const endDate = popup.endDate ? new Date(popup.endDate) : null;
+
+        const isAfterStart = !startDate || now >= startDate;
+        const isBeforeEnd = !endDate || now <= endDate;
+
+        return isAfterStart && isBeforeEnd;
+      });
+
+      if (activePopups.length > 0) {
+        setPopups(activePopups);
+        setCurrentPopup(activePopups[0]);
+        setIsPopupOpen(true);
+      }
+    } catch (error) {
+      alert("팝업 데이터 로딩에 실패했습니다.");
+    }
+  };
+
+  // 팝업 닫기
+  const handleClosePopup = () => {
+    setIsPopupOpen(false);
+  };
+
+  // 오늘 다시 보지 않기
+  const handleDontShowToday = () => {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    localStorage.setItem("popupDontShowUntil", today.toISOString());
+    setIsPopupOpen(false);
+  };
+
+  // 다음 팝업으로 이동
+  const handleNextPopup = () => {
+    if (currentPopup && popups.length > 1) {
+      const currentIndex = popups.findIndex(
+        (popup) => popup._id === currentPopup._id
+      );
+      const nextIndex = (currentIndex + 1) % popups.length;
+      setCurrentPopup(popups[nextIndex]);
+    }
+  };
 
   const fetchImages = async () => {
     try {
@@ -100,7 +140,7 @@ export const useContentManagement = () => {
 
   const handlePopupFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setPopupFormData({ ...popupFormData, image: e.target.files[0] });
+      setPopupFormData({ ...popupFormData, imageFile: e.target.files[0] });
     }
   };
 
@@ -110,15 +150,20 @@ export const useContentManagement = () => {
     }
   };
 
-  const handleTestimonialFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTestimonialFileChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     if (e.target.files && e.target.files[0]) {
-      setTestimonialFormData({ ...testimonialFormData, image: e.target.files[0] });
+      setTestimonialFormData({
+        ...testimonialFormData,
+        image: e.target.files[0],
+      });
     }
   };
 
   const handlePopupImageSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!popupFormData.image) {
+    if (!popupFormData.imageFile) {
       alert("이미지를 선택해주세요.");
       return;
     }
@@ -126,15 +171,15 @@ export const useContentManagement = () => {
     setIsUploading(true);
     try {
       const formData = new FormData();
-      formData.append("image", popupFormData.image);
+      formData.append("image", popupFormData.imageFile);
       formData.append("title", popupFormData.title);
       formData.append("description", popupFormData.description);
-      formData.append("link", popupFormData.link);
+      formData.append("link", popupFormData.link || "");
       if (popupFormData.startDate) {
-        formData.append("startDate", popupFormData.startDate.toISOString());
+        formData.append("startDate", popupFormData.startDate);
       }
       if (popupFormData.endDate) {
-        formData.append("endDate", popupFormData.endDate.toISOString());
+        formData.append("endDate", popupFormData.endDate);
       }
 
       await createEventPopup(formData);
@@ -142,13 +187,12 @@ export const useContentManagement = () => {
         title: "",
         description: "",
         link: "",
-        startDate: null,
-        endDate: null,
-        image: null,
+        startDate: "",
+        endDate: "",
+        imageFile: undefined,
       });
       fetchImages();
     } catch (error) {
-      console.error("팝업 이미지 추가 실패:", error);
       alert("팝업 이미지 추가에 실패했습니다.");
     } finally {
       setIsUploading(false);
@@ -216,7 +260,6 @@ export const useContentManagement = () => {
       });
       fetchImages();
     } catch (error) {
-      console.error("인물 소개 추가 실패:", error);
       alert("인물 소개 추가에 실패했습니다.");
     } finally {
       setIsUploading(false);
@@ -229,7 +272,6 @@ export const useContentManagement = () => {
         await deleteEventPopup(id);
         fetchImages();
       } catch (error) {
-        console.error("팝업 삭제 실패:", error);
         alert("팝업 삭제에 실패했습니다.");
       }
     }
@@ -241,7 +283,6 @@ export const useContentManagement = () => {
         await deleteImageSlide(id);
         fetchImages();
       } catch (error) {
-        console.error("슬라이드 삭제 실패:", error);
         alert("슬라이드 삭제에 실패했습니다.");
       }
     }
@@ -253,17 +294,20 @@ export const useContentManagement = () => {
         await deleteTestimonial(id);
         fetchImages();
       } catch (error) {
-        console.error("인물 소개 삭제 실패:", error);
         alert("인물 소개 삭제에 실패했습니다.");
       }
     }
   };
 
-  const handleToggleActive = async (id: string, isPopup: boolean, currentStatus: boolean) => {
+  const handleToggleActive = async (
+    id: string,
+    isPopup: boolean,
+    currentStatus: boolean
+  ) => {
     try {
       const formData = new FormData();
       formData.append("isActive", (!currentStatus).toString());
-      
+
       if (isPopup) {
         await updateEventPopup(id, formData);
       } else if (activeTab === "slide") {
@@ -273,15 +317,24 @@ export const useContentManagement = () => {
       }
       fetchImages();
     } catch (error) {
-      console.error("상태 변경 실패:", error);
       alert("상태 변경에 실패했습니다.");
     }
   };
+
+  // 컴포넌트 마운트 시 팝업 데이터 가져오기
+  useEffect(() => {
+    fetchPopups();
+  }, []);
 
   return {
     activeTab,
     setActiveTab,
     popups,
+    currentPopup,
+    isPopupOpen,
+    handleClosePopup,
+    handleDontShowToday,
+    handleNextPopup,
     slideImages,
     testimonials,
     isUploading,
@@ -292,6 +345,7 @@ export const useContentManagement = () => {
     testimonialFormData,
     setTestimonialFormData,
     fetchImages,
+    fetchPopups,
     handlePopupFileChange,
     handleSlideFileChange,
     handleTestimonialFileChange,
@@ -303,4 +357,4 @@ export const useContentManagement = () => {
     handleDeleteTestimonial,
     handleToggleActive,
   };
-}; 
+};

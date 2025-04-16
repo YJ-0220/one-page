@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
-import { userLogin } from "../api";
-import { useSocialLoginForm } from "../hooks/useSocialLoginForm";
-import useAuth from "../hooks/useAuth";
+import { useSocialLoginForm } from "../../hooks/useSocialLoginForm";
+import useAuth from "../../hooks/useAuth";
 
 interface LoginFormProps {
   onLogin: (username: string) => void;
@@ -19,8 +17,8 @@ const LoginForm = ({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login, handleSocialLoginSuccess } = useAuth();
-
+  const { login, handleSocialLogin } = useAuth();
+  
   // 소셜 로그인 핸들러 가져오기
   const { handleGoogleLogin, handleLineLogin } = useSocialLoginForm();
 
@@ -33,10 +31,10 @@ const LoginForm = ({
           const loginData = JSON.parse(
             localStorage.getItem("loginData") || "{}"
           );
-          
+
           // 소셜 로그인 처리
-          const result = await handleSocialLoginSuccess(loginData);
-          
+          const result = await handleSocialLogin(loginData);
+
           if (result.success) {
             // 로그인 콜백 호출
             onLogin(loginData.user?.displayName || loginData.user?.email || "");
@@ -47,7 +45,6 @@ const LoginForm = ({
           }
         } catch (error) {
           console.error("로그인 처리 중 오류:", error);
-          setError("로그인 처리 중 오류가 발생했습니다.");
         }
       }
     };
@@ -58,23 +55,24 @@ const LoginForm = ({
     return () => {
       window.removeEventListener("storage", handleStorageChange);
     };
-  }, [onLogin, onClose, handleSocialLoginSuccess]);
+  }, [onLogin, onClose, handleSocialLogin]);
 
   // 이메일/비밀번호 로그인
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
-    
+
     try {
       const response = await login(email, password);
       if (response && response.user) {
         onLogin(response.user.displayName || response.user.email || email);
         onClose();
-        window.location.href = "/";
+        // 홈으로 이동 후 새로고침
+        window.location.href = "/";  // navigate 대신 window.location.href 사용
       }
     } catch (error: any) {
-      setError(error.response?.data?.error || '로그인에 실패했습니다.');
+      setError(error.response?.data?.error || "로그인에 실패했습니다.");
     } finally {
       setLoading(false);
     }

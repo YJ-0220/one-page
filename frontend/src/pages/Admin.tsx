@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import UserManagement from '../components/UserManagement';
-import ContactManagement from '../components/ContactManagement';
-import ContentManagement from '../components/ContentManagement';
-import LoginForm from '../components/LoginForm';
+import UserManagement from '../components/admin/UserManagement';
+import ContactManagement from '../components/admin/ContactManagement';
+import ContentManagement from '../components/admin/ContentManagement';
+import LoginForm from '../components/login/LoginForm';
 import { getVisitorStats, getUnreadContactsCount, getUsersList } from '../api';
 
 interface AdminPageProps {

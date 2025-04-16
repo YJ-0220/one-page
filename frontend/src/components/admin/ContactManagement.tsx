@@ -4,7 +4,7 @@ import {
   markContactAsRead,
   deleteContact,
   Contact,
-} from "../api";
+} from "../../api";
 
 const ContactManagement = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);

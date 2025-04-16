@@ -1,27 +1,113 @@
 import axios from "axios";
-import { setApiInstance } from "../utils/authUtils";
 
 // 환경변수에서 기본 URL 가져오기
-export const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
-export const API_URL = BASE_URL;
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 // API 기본 설정
 const api = axios.create({
   baseURL: API_URL,
   timeout: 10000,
-  withCredentials: false, // 쿠키 사용 안함
+  withCredentials: false,
 });
 
-// API 인스턴스를 authUtils에 등록
-setApiInstance(api);
+// ===== 인증 관련 API =====
+// 로그인 API
+export const userLogin = async (email: string, password: string) => {
+  try {
+    const response = await api.post("/auth/login", { email, password });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
 
-// 초기 토큰 설정 (앱 시작시)
-const token = localStorage.getItem("authToken");
-if (token) {
-  api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-  // 글로벌 axios 헤더에도 설정
-  axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-}
+// 로그아웃
+export const userLogout = () => {
+  // 모든 인증 관련 데이터 제거
+  localStorage.removeItem("authToken");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("userName");
+  localStorage.removeItem("userId");
+  localStorage.removeItem("user");
+  localStorage.removeItem("loginSuccess");
+  localStorage.removeItem("loginData");
+
+  // API 헤더에서 토큰 제거
+  delete api.defaults.headers.common["Authorization"];
+};
+
+// 인증 상태 확인
+export const checkAuthStatus = async () => {
+  try {
+    const response = await api.get("/auth/status");
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// 토큰 갱신
+export const refreshToken = async () => {
+  try {
+    const refreshToken = localStorage.getItem("refreshToken");
+    if (!refreshToken) {
+      throw new Error("리프레시 토큰이 없습니다");
+    }
+
+    const response = await api.post("/auth/refresh-token", {
+      refreshToken,
+    });
+
+    const { accessToken } = response.data;
+    if (accessToken) {
+      localStorage.setItem("authToken", accessToken);
+      api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+      return accessToken;
+    }
+    throw new Error("새 액세스 토큰을 받지 못했습니다");
+  } catch (error) {
+    throw error;
+  }
+};
+
+// API 인터셉터 설정
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("authToken");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        const newToken = await refreshToken();
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        if (!window.location.pathname.includes("/login")) {
+          alert("로그인이 만료되었습니다. 다시 로그인해주세요.");
+          window.location.href = "/";
+        }
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 // 타입 정의
 export interface User {
@@ -43,87 +129,10 @@ export interface Contact {
   createdAt: Date;
 }
 
-// API 호출 전 항상 최신 토큰 확인하는 함수
-const ensureToken = () => {
-  const token = localStorage.getItem("authToken");
-  if (token) {
-    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-    axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-  }
-};
-
-// ===== 인증 관련 API =====
-// 로그인 API
-export const userLogin = async (email: string, password: string) => {
-  try {
-    const response = await api.post("/auth/login", { email, password });
-
-    if (response.data.accessToken) {
-      localStorage.setItem("authToken", response.data.accessToken);
-      api.defaults.headers.common[
-        "Authorization"
-      ] = `Bearer ${response.data.accessToken}`;
-      axios.defaults.headers.common[
-        "Authorization"
-      ] = `Bearer ${response.data.accessToken}`;
-    }
-
-    if (response.data.refreshToken) {
-      localStorage.setItem("refreshToken", response.data.refreshToken);
-    }
-
-    if (response.data.user?.displayName) {
-      localStorage.setItem("userName", response.data.user.displayName);
-    }
-
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// 로그아웃
-export const userLogout = () => {
-  // authUtils의 removeAuthToken 함수를 직접 import해서 사용
-  import("../utils/authUtils")
-    .then(({ removeAuthToken }) => {
-      removeAuthToken();
-    })
-    .catch(() => {
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("userName");
-      delete axios.defaults.headers.common["Authorization"];
-      delete api.defaults.headers.common["Authorization"];
-    });
-};
-
-// 인증 상태 확인
-export const checkAuthStatus = async () => {
-  try {
-    const token = localStorage.getItem("authToken");
-    if (!token) {
-      return { authenticated: false };
-    }
-
-    // 헤더에 토큰 명시적 추가
-    const response = await api.get("/auth/status", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    return response.data;
-  } catch (error) {
-    return { authenticated: false };
-  }
-};
-
 // ===== 사용자 관리 API (관리자 전용) =====
 // 사용자 목록 조회
 export const getUsersList = async () => {
   try {
-    ensureToken(); // 토큰 확인
     const response = await api.get("/auth/users/list");
     return response.data;
   } catch (error: any) {
@@ -140,7 +149,6 @@ export const getUsersList = async () => {
 // 관리자 권한 토글
 export const toggleUserAdminRole = async (userId: string) => {
   try {
-    ensureToken(); // 토큰 확인
     const response = await api.patch(`/auth/users/admin-toggle/${userId}`);
     return response.data;
   } catch (error: any) {
@@ -154,7 +162,6 @@ export const toggleUserAdminRole = async (userId: string) => {
 // 사용자 삭제
 export const deleteUserById = async (userId: string) => {
   try {
-    ensureToken(); // 토큰 확인
     const response = await api.delete(`/auth/users/delete/${userId}`);
     return response.data;
   } catch (error: any) {
@@ -187,7 +194,6 @@ export const submitContactForm = async (
 // 문의 목록 조회 (관리자 전용)
 export const getContactsList = async () => {
   try {
-    ensureToken(); // 토큰 확인
     const response = await api.get("/contact/list");
     return response.data;
   } catch (error: any) {
@@ -201,7 +207,6 @@ export const getContactsList = async () => {
 // 문의 읽음 표시 (관리자 전용)
 export const markContactAsRead = async (contactId: string) => {
   try {
-    ensureToken(); // 토큰 확인
     const response = await api.patch(`/contact/mark-read/${contactId}`);
     return response.data;
   } catch (error) {
@@ -212,7 +217,6 @@ export const markContactAsRead = async (contactId: string) => {
 // 문의 삭제 (관리자 전용)
 export const deleteContact = async (contactId: string) => {
   try {
-    ensureToken(); // 토큰 확인
     const response = await api.delete(`/contact/delete/${contactId}`);
     return response.data;
   } catch (error) {
@@ -224,7 +228,6 @@ export const deleteContact = async (contactId: string) => {
 // 방문자 통계 조회
 export const getVisitorStats = async () => {
   try {
-    ensureToken(); // 토큰 확인
     const response = await api.get("/stats/visitors");
     return response.data;
   } catch (error: any) {
@@ -238,7 +241,6 @@ export const getVisitorStats = async () => {
 // 읽지 않은 문의 수 조회
 export const getUnreadContactsCount = async () => {
   try {
-    ensureToken(); // 토큰 확인
     const response = await api.get("/contact/unread-count");
     return response.data.count;
   } catch (error: any) {
@@ -252,7 +254,6 @@ export const getUnreadContactsCount = async () => {
 // 대시보드 요약 정보 조회
 export const getDashboardSummary = async () => {
   try {
-    ensureToken(); // 토큰 확인
     const response = await api.get("/stats/dashboard/summary");
     return response.data;
   } catch (error: any) {

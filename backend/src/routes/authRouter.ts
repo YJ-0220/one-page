@@ -183,135 +183,56 @@ router.get("/line", (req, res, next) => {
 });
 
 // Google 로그인 콜백
-router.get(
-  "/google/callback",
-  passport.authenticate("google", { session: false }),
-  async (req, res) => {
-    try {
-      if (!req.user) {
-        const callbackUrl = req.query.state as string;
-        return res.redirect(
-          `${callbackUrl || CLIENT_URL}/#/login?error=인증 실패`
-        );
-      }
-
-      const user = req.user as any;
-      const { accessToken, refreshToken } = generateTokens(user);
-
-      // state 파라미터에서 콜백 URL 가져오기
+router.get("/google/callback", passport.authenticate("google", { session: false }), async (req, res) => {
+  try {
+    if (!req.user) {
       const callbackUrl = req.query.state as string;
-      if (callbackUrl) {
-        const userData = {
-          _id: user._id,
-          displayName: user.displayName,
-          email: user.email,
-          isAdmin: user.isAdmin
-        };
-        return res.redirect(
-          `${callbackUrl}?accessToken=${accessToken}&refreshToken=${refreshToken}&user=${encodeURIComponent(JSON.stringify(userData))}`
-        );
-      }
-
-      // 팝업 창에 메시지 전달
-      const html = `
-        <html>
-          <body>
-            <script>
-              try {
-                const userData = {
-                  _id: "${user._id}",
-                  displayName: "${user.displayName}",
-                  email: "${user.email}",
-                  isAdmin: ${user.isAdmin}
-                };
-                
-                window.opener.postMessage({
-                  type: "LOGIN_SUCCESS",
-                  accessToken: "${accessToken}",
-                  refreshToken: "${refreshToken}",
-                  user: userData
-                }, "*");
-                
-                // 창 닫기 시도
-                window.close();
-              } catch (e) {
-                console.error('팝업창 닫기 실패:', e);
-              }
-            </script>
-            <div style="text-align: center; padding: 20px; font-family: Arial, sans-serif;">
-              <h2 style="color: #4CAF50;">로그인 성공!</h2>
-              <p>로그인이 완료되었습니다. 이 창을 닫고 메인 페이지로 돌아가세요.</p>
-              <button onclick="window.close()" style="background-color: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
-                창 닫기
-              </button>
-            </div>
-          </body>
-        </html>
-      `;
-
-      res.send(html);
-    } catch (error) {
-      console.error("Google 로그인 콜백 에러:", error);
-      const callbackUrl = req.query.state as string;
-      res.redirect(`${callbackUrl || CLIENT_URL}/#/login?error=서버 오류`);
+      return res.redirect(`${callbackUrl || CLIENT_URL}/#/login?error=인증 실패`);
     }
-  }
-);
 
-// LINE 콜백 엔드포인트
-router.get('/line/callback',
-  passport.authenticate('line', { failureRedirect: '/login' }),
-  async (req: any, res: any) => {
-    try {
-      if (!req.user) {
-        return res.redirect(`${CLIENT_URL}/#/login?error=인증 실패`);
-      }
+    const user = req.user as any;
+    const { accessToken, refreshToken } = generateTokens(user);
 
-      const user = req.user as any;
-      const { accessToken, refreshToken } = generateTokens(user);
-
-      // 팝업 창에 메시지 전달
-      const html = `
-        <html>
-          <body>
-            <script>
-              try {
-                window.opener.postMessage({
-                  type: "LOGIN_SUCCESS",
-                  accessToken: "${accessToken}",
-                  refreshToken: "${refreshToken}",
-                  user: {
-                    _id: "${user._id}",
-                    displayName: "${user.displayName}",
-                    email: "${user.email}",
-                    isAdmin: ${user.isAdmin}
-                  }
-                }, "*");
-                
-                // 창 닫기 시도
-                window.close();
-              } catch (e) {
-                console.error('팝업창 닫기 실패:', e);
-              }
-            </script>
-            <div style="text-align: center; padding: 20px; font-family: Arial, sans-serif;">
-              <h2 style="color: #4CAF50;">로그인 성공!</h2>
-              <p>로그인이 완료되었습니다. 이 창을 닫고 메인 페이지로 돌아가세요.</p>
-              <button onclick="window.close()" style="background-color: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
-                창 닫기
-              </button>
-            </div>
-          </body>
-        </html>
-      `;
-
-      res.send(html);
-    } catch (error) {
-      console.error("LINE 로그인 콜백 에러:", error);
-      res.redirect(`${CLIENT_URL}/#/login?error=서버 오류`);
+    // state 파라미터에서 콜백 URL 가져오기
+    const callbackUrl = req.query.state as string;
+    if (callbackUrl) {
+      const userData = {
+        _id: user._id,
+        displayName: user.displayName,
+        email: user.email,
+        isAdmin: user.isAdmin
+      };
+      return res.redirect(
+        `${callbackUrl}?accessToken=${accessToken}&refreshToken=${refreshToken}&user=${encodeURIComponent(JSON.stringify(userData))}`
+      );
     }
+
+    // 기본 리다이렉트
+    return res.redirect(`${CLIENT_URL}/#/login?accessToken=${accessToken}&refreshToken=${refreshToken}`);
+  } catch (error) {
+    console.error("Google 로그인 콜백 에러:", error);
+    const callbackUrl = req.query.state as string;
+    res.redirect(`${callbackUrl || CLIENT_URL}/#/login?error=서버 오류`);
   }
-);
+});
+
+// LINE 콜백
+router.get('/line/callback', passport.authenticate('line', { failureRedirect: '/login' }), async (req: any, res: any) => {
+  try {
+    if (!req.user) {
+      return res.redirect(`${CLIENT_URL}/#/login?error=인증 실패`);
+    }
+
+    const user = req.user as any;
+    const { accessToken, refreshToken } = generateTokens(user);
+
+    // 기본 리다이렉트
+    return res.redirect(`${CLIENT_URL}/#/login?accessToken=${accessToken}&refreshToken=${refreshToken}`);
+  } catch (error) {
+    console.error("LINE 로그인 콜백 에러:", error);
+    res.redirect(`${CLIENT_URL}/#/login?error=서버 오류`);
+  }
+});
 
 // ===== 사용자 관리 API =====
 
