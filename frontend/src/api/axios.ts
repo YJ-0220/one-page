@@ -1,3 +1,4 @@
+import { getBasePath } from "@/utils/environment";
 import axios from "axios";
 
 // 기본 URL 설정
@@ -80,7 +81,8 @@ api.interceptors.response.use(
         // 리프레시 토큰도 만료되었거나 오류가 발생한 경우
         if (!window.location.pathname.includes("/login")) {
           alert("로그인이 만료되었습니다. 다시 로그인해주세요.");
-          window.location.href = "/";
+          const basePath = getBasePath();
+          window.location.href = basePath;
         }
         return Promise.reject(refreshError);
       }
@@ -96,7 +98,8 @@ api.interceptors.response.use(
 
       if (!window.location.pathname.includes("/login")) {
         alert("인증에 실패했습니다. 다시 로그인해주세요.");
-        window.location.href = "/";
+        const basePath = getBasePath();
+        window.location.href = basePath;
       }
     }
 

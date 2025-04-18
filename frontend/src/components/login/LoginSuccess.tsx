@@ -25,7 +25,8 @@ const LoginSuccess = () => {
           // 현재 창 닫기
           window.close();
         } else {
-          window.location.href = getBasePath();
+          const basePath = getBasePath();
+          window.location.href = basePath;
         }
       }
     } catch (error) {

@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getBasePath } from "@/utils/environment";
 
 // 환경변수에서 기본 URL 가져오기
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -99,7 +100,8 @@ api.interceptors.response.use(
       } catch (refreshError) {
         if (!window.location.pathname.includes("/login")) {
           alert("로그인이 만료되었습니다. 다시 로그인해주세요.");
-          window.location.href = "/";
+          const basePath = getBasePath();
+          window.location.href = basePath;
         }
         return Promise.reject(refreshError);
       }

@@ -1,11 +1,13 @@
 import { useNavigate } from "react-router-dom";
 import LoginForm from "../components/login/LoginForm";
+import { getBasePath } from "@/utils/environment";
 
 const Login = () => {
   const navigate = useNavigate();
 
   const handleLoginSuccess = (_username: string) => {
-    navigate("/");
+    const basePath = getBasePath();
+    navigate(basePath);
   };
 
   return (
@@ -14,7 +16,7 @@ const Login = () => {
         <h2 className="text-2xl font-bold mb-6 text-center">로그인</h2>
         <LoginForm
           onLogin={handleLoginSuccess}
-          onClose={() => navigate("/")}
+          onClose={() => navigate(getBasePath())}
           socialOnly={false}
         />
       </div>
