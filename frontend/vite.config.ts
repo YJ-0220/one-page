@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss()],
-    base: "/one-page/", // 깃허브 전용 배포 경로
+    base: "/",
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
@@ -29,6 +29,7 @@ export default defineConfig(({ mode }) => {
           ws: true,
         },
       },
+      cors: true,
     },
     build: {
       outDir: "dist",

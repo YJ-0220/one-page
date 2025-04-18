@@ -6,12 +6,7 @@ import AdminPage from "@/pages/Admin";
 import Login from "@/pages/Login";
 import ContactWidget from "@/components/ContactWidget";
 import useAuth from "./hooks/useAuth";
-import {
-  Routes,
-  Route,
-  Navigate,
-  useNavigate,
-} from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import LoginSuccess from "./components/login/LoginSuccess";
 
 // 페이지 로드 시 토큰 확인 및 설정
@@ -23,8 +18,15 @@ if (token) {
 function App() {
   const [activePage, setActivePage] = useState<string>("home");
   const navigate = useNavigate();
-  const { user, isAuthenticated, loading, checkAuth, logout, handleSocialLogin } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const {
+    user,
+    isAuthenticated,
+    loading,
+    checkAuth,
+    logout,
+    handleSocialLogin,
+  } = useAuth();
+  const isAdmin = user?.role === "admin";
 
   // 로그인 핸들러 함수
   const handleLogin = useCallback(async () => {
@@ -35,15 +37,44 @@ function App() {
         window.location.reload();
       }
     } catch (error) {
-      console.error("로그인 후 인증 상태 확인 오류:", error);
       window.location.reload();
     }
+  }, [checkAuth]);
+
+  // 로그인 상태 변화를 감지하여 UI 갱신
+  useEffect(() => {
+    if (isAuthenticated) {
+      setActivePage("home");
+      
+      // 로그인 후 사용자 정보 표시 강제 갱신
+      const userInfo = localStorage.getItem("user");
+      if (userInfo && !user) {
+        try {
+          checkAuth();
+        } catch (error) {
+          // 인증 상태 확인 오류 처리
+        }
+      }
+    }
+  }, [isAuthenticated, user, checkAuth]);
+
+  // 초기 앱 로드 시 인증 상태 확인
+  useEffect(() => {
+    const checkAuthOnLoad = async () => {
+      try {
+        await checkAuth();
+      } catch (error) {
+        console.error("초기 인증 상태 확인 오류:", error);
+      }
+    };
+    
+    checkAuthOnLoad();
   }, [checkAuth]);
 
   // 로그아웃 핸들러
   const handleLogout = async () => {
     await logout();
-    navigate('/');
+    navigate("/");
   };
 
   // URL 매개변수에서 토큰 확인
@@ -84,60 +115,6 @@ function App() {
     }
   }, [handleSocialLogin, navigate]);
 
-  // 로컬 스토리지 이벤트 리스너로 소셜 로그인 상태 확인
-  useEffect(() => {
-    const handleStorageChange = async (event: StorageEvent) => {
-      if (event.key === "loginSuccess" && event.newValue === "true") {
-        try {
-          const loginData = JSON.parse(
-            localStorage.getItem("loginData") || "{}"
-          );
-
-          const result = await handleSocialLogin(loginData);
-
-          if (result.success) {
-            setActivePage("home");
-            localStorage.removeItem("loginSuccess");
-            localStorage.removeItem("loginData");
-            navigate("/");
-          }
-        } catch (error) {
-          console.error("App: 인증 상태 업데이트 실패", error);
-        }
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    
-    const handleMessage = async (event: MessageEvent) => {
-      if (event.data && event.data.type === 'LOGIN_SUCCESS') {
-        try {
-          const loginData = JSON.parse(
-            localStorage.getItem("loginData") || "{}"
-          );
-          
-          const result = await handleSocialLogin(loginData);
-          
-          if (result.success) {
-            setActivePage("home");
-            localStorage.removeItem("loginSuccess");
-            localStorage.removeItem("loginData");
-            navigate("/");
-          }
-        } catch (error) {
-          console.error("App: 메시지 이벤트 처리 실패", error);
-        }
-      }
-    };
-
-    window.addEventListener("message", handleMessage);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("message", handleMessage);
-    };
-  }, [handleSocialLogin, navigate]);
-
   // 로딩 중이면 로딩 표시
   if (loading) {
     return <div className="loading">로딩 중...</div>;
@@ -168,17 +145,11 @@ function App() {
               )
             }
           />
+          <Route path="/auth/callback" element={<LoginSuccess />} />
           <Route
             path="/login"
-            element={
-              isAuthenticated ? (
-                <Navigate to="/" replace />
-              ) : (
-                <Login />
-              )
-            }
+            element={isAuthenticated ? <Navigate to="/" replace /> : <Login />}
           />
-          <Route path="/auth/callback" element={<LoginSuccess />} />
         </Routes>
       </main>
       <Footer />

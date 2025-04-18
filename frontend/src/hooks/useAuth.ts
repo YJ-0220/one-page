@@ -96,7 +96,10 @@ export default function useAuth() {
           throw new Error("액세스 토큰이 없습니다.");
         }
 
-        setAuthToken(accessToken);
+        // 토큰 저장
+        localStorage.setItem("authToken", accessToken);
+        api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+        
         if (refreshToken) {
           localStorage.setItem("refreshToken", refreshToken);
         }
@@ -106,14 +109,14 @@ export default function useAuth() {
         if (!userData) {
           try {
             const response = await api.get("/auth/status");
-            userData = response.data;
+            userData = response.data.user;
           } catch (error) {
-            console.error("Failed to fetch user data:", error);
-            throw new Error("사용자 정보를 가져올 수 없습니다.");
+            // 사용자 정보를 가져오지 못해도 계속 진행
           }
         }
 
         if (userData) {
+          // 사용자 정보 변환 및 저장
           const transformedUser = {
             _id: userData._id,
             displayName: userData.displayName || userData.email || "사용자",
@@ -124,14 +127,14 @@ export default function useAuth() {
             updatedAt: userData.updatedAt || new Date().toISOString(),
           };
 
+          // 로컬 스토리지에 사용자 정보 저장
           localStorage.setItem("user", JSON.stringify(transformedUser));
+          
+          // 상태 업데이트
           setUserData(transformedUser);
           setIsAuthenticated(true);
-
-          // 로그인 성공 시 부모 창에 메시지 전달
-          if (window.opener) {
-            window.opener.postMessage({ type: "LOGIN_SUCCESS", user: transformedUser }, "*");
-          }
+        } else {
+          setIsAuthenticated(true);
         }
 
         return { success: true };

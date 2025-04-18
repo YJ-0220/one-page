@@ -1,24 +1,13 @@
 import { useCallback } from "react";
 
 export const useSocialLoginForm = () => {
-  // 공통 팝업창 설정 함수
-  const openPopup = useCallback((url: string) => {
-    const width = 500;
-    const height = 600;
-    const left = window.screenX + (window.outerWidth - width) / 2;
-    const top = window.screenY + (window.outerHeight - height) / 2;
-
-    const popup = window.open(
-      url,
-      "소셜 로그인",
-      `width=${width},height=${height},left=${left},top=${top}`
-    );
-
-    if (!popup) {
-      alert("팝업이 차단되었습니다. 팝업 차단을 해제해주세요.");
-      return false;
-    }
-    return true;
+  // 리다이렉트 방식으로 변경
+  const redirectToLogin = useCallback((url: string) => {
+    // 현재 URL을 로컬 스토리지에 저장 (로그인 후 돌아오기 위해)
+    localStorage.setItem("loginRedirectUrl", window.location.href);
+    
+    // 소셜 로그인 페이지로 리다이렉트
+    window.location.href = url;
   }, []);
 
   // Google 로그인 처리
@@ -31,11 +20,14 @@ export const useSocialLoginForm = () => {
       return;
     }
 
+    // 콜백 URL - 전체 URL 경로 사용 (해시 없이)
     const callbackUrl = `${clientUrl}/#/auth/callback`;
-    const url = `${baseUrl}/auth/google?callback_url=${encodeURIComponent(callbackUrl)}`;
-
-    openPopup(url);
-  }, [openPopup]);
+    
+    // 백엔드에 콜백 URL 전달
+    const googleAuthUrl = `${baseUrl}/auth/google?callback_url=${encodeURIComponent(callbackUrl)}`;
+    
+    redirectToLogin(googleAuthUrl);
+  }, [redirectToLogin]);
 
   // LINE 로그인 처리
   const handleLineLogin = useCallback(() => {
@@ -47,12 +39,14 @@ export const useSocialLoginForm = () => {
       return;
     }
 
+    // 콜백 URL - 전체 URL 경로 사용 (해시 없이)
     const callbackUrl = `${clientUrl}/#/auth/callback`;
-    const state = Math.random().toString(36).substring(7);
-    const url = `${baseUrl}/auth/line?callback_url=${encodeURIComponent(callbackUrl)}&state=${state}`;
-
-    openPopup(url);
-  }, [openPopup]);
+    
+    // 백엔드에 콜백 URL 전달 (구글 로그인과 동일한 방식으로)
+    const lineAuthUrl = `${baseUrl}/auth/line?callback_url=${encodeURIComponent(callbackUrl)}`;
+    
+    redirectToLogin(lineAuthUrl);
+  }, [redirectToLogin]);
 
   return {
     handleGoogleLogin,

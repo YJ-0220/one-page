@@ -1,5 +1,4 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { getBasePath } from "@/utils/environment";
 
 interface NavbarProps {
   activePage: string;
@@ -21,8 +20,8 @@ const Navbar = ({ activePage, setActivePage }: NavbarProps) => {
     setActivePage(sectionId);
     
     // 현재 로그인 페이지에 있다면 홈페이지로 이동
-    if (location.pathname !== getBasePath()) {
-      navigate(getBasePath());
+    if (location.pathname !== "/") {
+      navigate("/");
       // 홈페이지로 이동 후 스크롤이 필요할 경우 약간의 지연을 줌
       setTimeout(() => {
         const element = document.getElementById(sectionId);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSocialLoginForm } from "../../hooks/useSocialLoginForm";
 import useAuth from "../../hooks/useAuth";
 
@@ -17,45 +17,10 @@ const LoginForm = ({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login, handleSocialLogin } = useAuth();
+  const { login } = useAuth();
   
   // 소셜 로그인 핸들러 가져오기
   const { handleGoogleLogin, handleLineLogin } = useSocialLoginForm();
-
-  // 로컬 스토리지 이벤트 리스너로 소셜 로그인 상태 확인
-  useEffect(() => {
-    const handleStorageChange = async (event: StorageEvent) => {
-      if (event.key === "loginSuccess" && event.newValue === "true") {
-        try {
-          // 로그인 데이터 가져오기
-          const loginData = JSON.parse(
-            localStorage.getItem("loginData") || "{}"
-          );
-
-          // 소셜 로그인 처리
-          const result = await handleSocialLogin(loginData);
-
-          if (result.success) {
-            // 로그인 콜백 호출
-            onLogin(loginData.user?.displayName || loginData.user?.email || "");
-            onClose();
-
-            // 홈페이지로 리다이렉트
-            window.location.href = "/";
-          }
-        } catch (error) {
-          console.error("로그인 처리 중 오류:", error);
-        }
-      }
-    };
-
-    // 이벤트 리스너 등록
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, [onLogin, onClose, handleSocialLogin]);
 
   // 이메일/비밀번호 로그인
   const handleSubmit = async (e: React.FormEvent) => {
@@ -69,7 +34,7 @@ const LoginForm = ({
         onLogin(response.user.displayName || response.user.email || email);
         onClose();
         // 홈으로 이동 후 새로고침
-        window.location.href = "/";  // navigate 대신 window.location.href 사용
+        window.location.href = "/";
       }
     } catch (error: any) {
       setError(error.response?.data?.error || "로그인에 실패했습니다.");

@@ -1,5 +1,4 @@
 import axios from "axios";
-import { getBasePath } from "@/utils/environment";
 
 // 환경변수에서 기본 URL 가져오기
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -30,8 +29,7 @@ export const userLogout = () => {
   localStorage.removeItem("userName");
   localStorage.removeItem("userId");
   localStorage.removeItem("user");
-  localStorage.removeItem("loginSuccess");
-  localStorage.removeItem("loginData");
+  localStorage.removeItem("loginRedirectUrl");
 
   // API 헤더에서 토큰 제거
   delete api.defaults.headers.common["Authorization"];
@@ -100,8 +98,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         if (!window.location.pathname.includes("/login")) {
           alert("로그인이 만료되었습니다. 다시 로그인해주세요.");
-          const basePath = getBasePath();
-          window.location.href = basePath;
+          window.location.href = "/";
         }
         return Promise.reject(refreshError);
       }

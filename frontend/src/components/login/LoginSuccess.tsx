@@ -1,78 +1,77 @@
 import { useEffect, useState, useCallback } from "react";
-import { useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import useAuth from "../../hooks/useAuth";
-import api from "../../api";
-import { getBasePath } from "../../utils/environment";
+
 const LoginSuccess = () => {
-  const location = useLocation();
+  const navigate = useNavigate();
   const { handleSocialLogin } = useAuth();
-  const [loginStatus, setLoginStatus] = useState<"processing" | "success" | "error">("processing");
+  const [loginStatus, setLoginStatus] = useState<
+    "processing" | "success" | "error"
+  >("processing");
   const [errorMessage, setErrorMessage] = useState<string>("");
 
-  const handleLoginSuccess = useCallback(async (userData: any) => {
-    try {
-      const result = await handleSocialLogin({
-        accessToken: userData.accessToken,
-        refreshToken: userData.refreshToken,
-        user: userData.user
-      });
-
-      if (result.success) {
-        setLoginStatus("success");
-        if (window.opener) {
-          // 부모 창 새로고침
-          window.opener.location.reload();
-          // 현재 창 닫기
-          window.close();
-        } else {
-          const basePath = getBasePath();
-          window.location.href = basePath;
+  const handleLoginSuccess = useCallback(
+    async (userData: any) => {
+      try {
+        if (!userData.accessToken) {
+          throw new Error("액세스 토큰이 없습니다");
         }
-      }
-    } catch (error) {
-      console.error("Social login failed:", error);
-      setLoginStatus("error");
-      setErrorMessage("로그인 처리에 실패했습니다.");
-    }
-  }, [handleSocialLogin]);
+        
+        const result = await handleSocialLogin({
+          accessToken: userData.accessToken,
+          refreshToken: userData.refreshToken,
+          user: userData.user,
+        });
 
+        if (result.success) {
+          setLoginStatus("success");
+          
+          // 로그인 이전 페이지로 돌아가기 (저장된 URL이 있으면)
+          const redirectUrl = localStorage.getItem("loginRedirectUrl");
+          localStorage.removeItem("loginRedirectUrl");
+          
+          // 리다이렉트 (기본값은 홈페이지)
+          window.location.href = redirectUrl || "/";
+        } else {
+          throw new Error(result.error || "알 수 없는 오류");
+        }
+      } catch (error: any) {
+        setLoginStatus("error");
+        setErrorMessage(error.message || "로그인 처리에 실패했습니다.");
+      }
+    },
+    [handleSocialLogin]
+  );
+
+  // URL 파라미터로 받은 인증 정보 처리
   useEffect(() => {
     const handleUrlParams = async () => {
       try {
-        const params = new URLSearchParams(location.search);
-        const hashParams = new URLSearchParams(location.hash.substring(1));
-
-        // Google 로그인 처리
-        const accessToken = params.get("accessToken") || hashParams.get("accessToken");
-        const refreshToken = params.get("refreshToken") || hashParams.get("refreshToken");
-
-        if (accessToken && refreshToken) {
-          await handleLoginSuccess({ accessToken, refreshToken, user: null });
+        // URL 파라미터 추출
+        const searchParams = new URLSearchParams(window.location.search);
+        
+        // 토큰 추출
+        const accessToken = searchParams.get("accessToken");
+        const refreshToken = searchParams.get("refreshToken");
+        const userParam = searchParams.get("user");
+        
+        // 로그인 처리
+        if (accessToken) {
+          const userData = {
+            accessToken,
+            refreshToken: refreshToken || "",
+            user: userParam ? JSON.parse(decodeURIComponent(userParam)) : null,
+          };
+          
+          await handleLoginSuccess(userData);
           return;
         }
-
-        // LINE 로그인 처리
-        const lineAccessToken = params.get("line_access_token") || hashParams.get("line_access_token");
-        const lineUserId = params.get("line_user_id") || hashParams.get("line_user_id");
-
-        if (lineAccessToken && lineUserId) {
-          const response = await api.post("/auth/line/callback", {
-            accessToken: lineAccessToken,
-            userId: lineUserId,
-          });
-
-          if (response.data.success) {
-            await handleLoginSuccess(response.data);
-            return;
-          }
-        }
-
+        
+        // 토큰이 없는 경우
+        throw new Error("URL에서 인증 토큰을 찾을 수 없습니다.");
+      } catch (error: any) {
         setLoginStatus("error");
-        setErrorMessage("로그인 처리에 실패했습니다.");
-      } catch (error) {
-        console.error("URL parameter processing failed:", error);
-        setLoginStatus("error");
-        setErrorMessage("로그인 처리 중 오류가 발생했습니다.");
+        setErrorMessage(error.message || "로그인 처리에 실패했습니다.");
       }
     };
 
@@ -92,7 +91,7 @@ const LoginSuccess = () => {
         )}
         {loginStatus === "error" && (
           <button
-            onClick={() => window.location.href = getBasePath()}
+            onClick={() => navigate("/")}
             className="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition-colors"
           >
             홈으로 이동
