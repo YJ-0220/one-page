@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import useAuth from "../../hooks/useAuth";
 import api from "../../api";
-
+import { getBasePath } from "../../utils/environment";
 const LoginSuccess = () => {
   const location = useLocation();
   const { handleSocialLogin } = useAuth();
@@ -25,7 +25,7 @@ const LoginSuccess = () => {
           // 현재 창 닫기
           window.close();
         } else {
-          window.location.href = "/";
+          window.location.href = getBasePath();
         }
       }
     } catch (error) {
@@ -91,7 +91,7 @@ const LoginSuccess = () => {
         )}
         {loginStatus === "error" && (
           <button
-            onClick={() => window.location.href = "/"}
+            onClick={() => window.location.href = getBasePath()}
             className="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition-colors"
           >
             홈으로 이동

@@ -34,7 +34,6 @@ if (!fs.existsSync(uploadDir)) {
 const requiredEnvVars = [
   "CLIENT_URL",
   "BACKEND_URL",
-  "MONGODB_URI",
 ] as const;
 
 for (const envVar of requiredEnvVars) {
@@ -137,7 +136,6 @@ const startServer = async () => {
       console.log(`서버가 ${PORT}번 포트에서 실행 중입니다.`);
       console.log(`클라이언트 URL: ${CLIENT_URL}`);
       console.log(`백엔드 URL: ${BACKEND_URL}`);
-      console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
     });
   } catch (error) {
     console.error("서버 시작 중 오류 발생:", error);
