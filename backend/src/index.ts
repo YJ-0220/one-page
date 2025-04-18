@@ -15,7 +15,7 @@ import eventPopupRouter from "./routes/eventPopup";
 import imageSlideRouter from "./routes/imageSlide";
 import testimonialRouter from "./routes/testimonial";
 import fs from "fs";
-import { connectDB } from "./db/db";
+import { connectDB } from "./config/database";
 
 // 환경변수 로드
 const envFile =
