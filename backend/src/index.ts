@@ -102,7 +102,7 @@ app.use("/image-slide", imageSlideRouter);
 app.use("/testimonial", testimonialRouter);
 
 // 정적 파일 제공 설정
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "..", "..", "uploads")));
 
 // 기본 라우트
 app.get("/", (req, res) => {
