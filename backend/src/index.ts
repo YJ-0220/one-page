@@ -101,8 +101,22 @@ app.use("/event-popup", eventPopupRouter);
 app.use("/image-slide", imageSlideRouter);
 app.use("/testimonial", testimonialRouter);
 
-// 정적 파일 제공 설정
-app.use("/uploads", express.static(path.join(__dirname, "..", "..", "uploads")));
+// 정적 파일에 대한 접근 권한 설정 개선
+app.use("/uploads", (req, res, next) => {
+  // 모든 CORS 허용
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  next();
+}, express.static(path.join(__dirname, "../uploads"), {
+  // 파일 캐싱 비활성화
+  etag: false,
+  lastModified: false,
+  maxAge: 0,
+  // 전역 접근 허용
+  setHeaders: (res) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  }
+}));
 
 // 기본 라우트
 app.get("/", (req, res) => {

@@ -3,7 +3,6 @@ import { EventPopup } from "../types/content";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
-// 인증 헤더 가져오기
 const getAuthHeaders = () => {
   const token = localStorage.getItem("authToken");
   return {
@@ -12,7 +11,6 @@ const getAuthHeaders = () => {
   };
 };
 
-// 이미지 URL을 절대 경로로 변환하는 함수
 const getImageUrl = (path: string) => {
   if (!path) return "";
   if (path.startsWith("http")) return path;
@@ -20,7 +18,6 @@ const getImageUrl = (path: string) => {
   return `${API_URL}/uploads/${path}`;
 };
 
-// 이벤트 팝업 API
 export const getEventPopups = async (): Promise<EventPopup[]> => {
   const response = await axios.get(`${API_URL}/event-popup`);
   return response.data.map((item: any) => {
@@ -73,7 +70,6 @@ export const deleteEventPopup = async (id: string): Promise<void> => {
   await axios.delete(`${API_URL}/event-popup/${id}`);
 };
 
-// 이미지 슬라이드 API
 export const getImageSlides = async () => {
   const response = await axios.get(`${API_URL}/image-slide`);
   return response.data.map((item: any) => ({
@@ -119,7 +115,6 @@ export const deleteImageSlide = async (id: string) => {
   return response.data;
 };
 
-// 인물 소개 API
 export const getTestimonials = async () => {
   const response = await axios.get(`${API_URL}/testimonial`);
   return response.data.map((item: any) => ({

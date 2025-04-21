@@ -19,7 +19,6 @@ const UserManagement = () => {
       setUsers(usersData);
     } catch (err: any) {
       console.error('사용자 데이터 로드 오류:', err);
-      // 더 명확한 오류 메시지 표시
       if (err.message) {
         setError(err.message);
       } else {
@@ -33,7 +32,6 @@ const UserManagement = () => {
   const handleToggleAdmin = async (userId: string) => {
     try {
       const response = await toggleUserAdminRole(userId);
-      // 사용자 목록 업데이트
       setUsers(users.map(user => 
         user._id === userId ? {...user, isAdmin: !user.isAdmin} : user
       ));
@@ -61,7 +59,6 @@ const UserManagement = () => {
     
     try {
       await deleteUserById(userId);
-      // 사용자 목록에서 삭제된 유저 제거
       setUsers(users.filter(user => user._id !== userId));
       alert('사용자가 삭제되었습니다.');
     } catch (err: any) {

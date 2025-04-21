@@ -42,14 +42,12 @@ const ContactManagement = () => {
   const handleMarkAsRead = async (contactId: string) => {
     try {
       await markContactAsRead(contactId);
-      // 문의 목록 업데이트
       setContacts(
         contacts.map((contact) =>
           contact._id === contactId ? { ...contact, isRead: true } : contact
         )
       );
 
-      // 선택된 문의 정보도 업데이트
       if (selectedContact && selectedContact._id === contactId) {
         setSelectedContact({ ...selectedContact, isRead: true });
       }
@@ -71,10 +69,8 @@ const ContactManagement = () => {
     try {
       await deleteContact(contactId);
 
-      // 문의 목록에서 삭제
       setContacts(contacts.filter((contact) => contact._id !== contactId));
 
-      // 선택된 문의가 삭제된 경우 선택 해제
       if (selectedContact && selectedContact._id === contactId) {
         setSelectedContact(null);
         setShowModal(false);
@@ -197,8 +193,8 @@ const ContactManagement = () => {
             </svg>
             문의가 없습니다.
           </div>
-              </div>
-            ) : (
+        </div>
+      ) : (
         <div className="bg-white rounded-lg shadow-sm overflow-hidden w-full">
           <div className="overflow-x-auto w-full">
             <table className="w-full table-fixed divide-y divide-gray-200">
@@ -281,14 +277,13 @@ const ContactManagement = () => {
                 ))}
               </tbody>
             </table>
-              </div>
+          </div>
           <div className="bg-gray-50 px-6 py-3 border-t border-gray-200 text-sm text-gray-500">
             총 {contacts.length}건의 문의가 있습니다
           </div>
         </div>
       )}
 
-      {/* 메시지 내용 모달 */}
       {showModal && selectedContact && (
         <div className="fixed inset-0 bg-gray-200 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
@@ -301,7 +296,7 @@ const ContactManagement = () => {
                   )}
                 </h3>
                 <p className="text-sm text-gray-600">{selectedContact.email}</p>
-                </div>
+              </div>
               <button
                 onClick={closeModal}
                 className="text-gray-500 hover:text-gray-700"
@@ -321,14 +316,14 @@ const ContactManagement = () => {
                   />
                 </svg>
               </button>
-                </div>
+            </div>
             <div className="px-6 py-4 flex-1 overflow-y-auto">
               <div className="mb-4">
                 <div className="flex justify-between items-center">
                   <div className="text-sm text-gray-500">
                     작성일:{" "}
                     {new Date(selectedContact.createdAt).toLocaleString()}
-                </div>
+                  </div>
                   <div>
                     {selectedContact.isRead ? (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -348,7 +343,7 @@ const ContactManagement = () => {
                   {selectedContact.message}
                 </div>
               </div>
-              </div>
+            </div>
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-2 bg-gray-50">
               {!selectedContact.isRead && (
                 <button
@@ -378,4 +373,4 @@ const ContactManagement = () => {
   );
 };
 
-export default ContactManagement; 
+export default ContactManagement;

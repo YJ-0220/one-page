@@ -73,7 +73,6 @@ const ContentManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* 팝업 이미지 관리 */}
       {activeTab === "popup" && (
         <div>
           <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
@@ -222,7 +221,6 @@ const ContentManagement: React.FC = () => {
         </div>
       )}
 
-      {/* 슬라이드 이미지 관리 */}
       {activeTab === "slide" && (
         <div>
           <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
@@ -350,7 +348,6 @@ const ContentManagement: React.FC = () => {
         </div>
       )}
 
-      {/* 인물 소개 관리 */}
       {activeTab === "testimonial" && (
         <div>
           <h3 className="text-xl font-semibold mb-4">인물 소개 관리</h3>
@@ -449,7 +446,6 @@ const ContentManagement: React.FC = () => {
             </button>
           </form>
 
-          {/* 인물 소개 상세 목록 */}
           <div className="mt-8">
             <h3 className="text-xl font-semibold mb-4">인물 소개 상세 목록</h3>
             <div className="grid grid-cols-1 gap-4">

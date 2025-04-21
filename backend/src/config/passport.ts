@@ -8,21 +8,18 @@ import { generateTokens } from "../middleware/authMiddleware";
 import dotenv from "dotenv";
 import path from "path";
 
-// Passport 타입 정의
 declare global {
   namespace Express {
     interface User extends IUserDocument {}
   }
 }
 
-// 환경변수 로드
 const envFile =
   process.env.NODE_ENV === "production"
     ? ".env.production"
     : ".env.development";
 dotenv.config({ path: path.resolve(process.cwd(), envFile) });
 
-// 필수 환경변수 검증
 const requiredEnvVars = [
   "GOOGLE_CLIENT_ID",
   "GOOGLE_CLIENT_SECRET",
@@ -38,14 +35,12 @@ for (const envVar of requiredEnvVars) {
 
 const BACKEND_URL = process.env.BACKEND_URL as string;
 
-// 콜백 URL 검증 함수
 const validateCallbackUrl = (provider: string, callbackUrl: string) => {
   if (!callbackUrl.startsWith(BACKEND_URL)) {
     throw new Error(`Invalid callback URL for ${provider}: ${callbackUrl}`);
   }
 };
 
-// Passport 설정
 passport.serializeUser((user: Express.User, done) => {
   done(null, user);
 });
@@ -55,7 +50,6 @@ passport.deserializeUser((user: Express.User, done) => {
 });
 
 export const configurePassport = () => {
-  // Google OAuth 전략
   if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     passport.use(
       new GoogleStrategy(
@@ -99,7 +93,6 @@ export const configurePassport = () => {
     );
   }
 
-  // JWT 전략
   if (!process.env.JWT_SECRET) {
     throw new Error('JWT_SECRET이 설정되지 않았습니다.');
   }

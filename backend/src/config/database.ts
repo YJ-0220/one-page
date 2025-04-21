@@ -20,7 +20,6 @@ const sequelize = new Sequelize({
   }
 });
 
-// 데이터베이스 연결 테스트
 const testConnection = async () => {
   try {
     await sequelize.authenticate();

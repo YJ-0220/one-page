@@ -7,13 +7,11 @@ import fs from "fs";
 
 const router = express.Router();
 
-// 업로드 디렉토리 확인 및 생성
 const uploadDir = path.join(__dirname, "..", "..", "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// 이벤트 팝업 생성
 router.post(
   "/",
   upload.single("image"),
@@ -43,7 +41,6 @@ router.post(
   }
 );
 
-// 이벤트 팝업 목록 조회
 router.get("/", async (req: Request, res: Response) => {
   try {
     const eventPopups = await EventPopup.find().sort({ createdAt: -1 });
@@ -55,7 +52,6 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
-// 활성화된 이벤트 팝업 조회
 router.get("/active", async (req, res) => {
   try {
     const now = new Date();
@@ -73,7 +69,6 @@ router.get("/active", async (req, res) => {
   }
 });
 
-// 이벤트 팝업 수정
 router.put(
   "/:id",
   upload.single("image"),
@@ -120,7 +115,6 @@ router.put(
   }
 );
 
-// 이벤트 팝업 삭제
 router.delete("/:id", async (req: Request, res: Response) => {
   try {
     const popup = await EventPopup.findById(req.params.id);
@@ -128,23 +122,18 @@ router.delete("/:id", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "팝업을 찾을 수 없습니다." });
     }
 
-    // 이미지 파일 경로 가져오기
     const imagePath = popup.imageUrl;
     if (imagePath) {
-      // 파일 시스템에서 이미지 파일 삭제
       const fullPath = path.join(__dirname, "..", "..", imagePath);
 
-      // 파일이 존재하는지 확인
       if (fs.existsSync(fullPath)) {
         fs.unlink(fullPath, (err) => {
           if (err) {
-            // 에러 발생 시 무시
           }
         });
       }
     }
 
-    // 데이터베이스에서 팝업 삭제
     await EventPopup.findByIdAndDelete(req.params.id);
     res.status(200).json({ message: "팝업이 삭제되었습니다." });
   } catch (error: any) {

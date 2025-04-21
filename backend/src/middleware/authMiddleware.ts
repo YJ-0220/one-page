@@ -4,9 +4,8 @@ import User, { IUserDocument } from "../models/User";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key";
 
-// JWT 토큰에서 디코딩된 사용자 정보 인터페이스
 export interface JWTPayload {
-  userId: string; // MongoDB의 _id 값을 저장
+  userId: string;
   email: string;
   displayName: string;
   isAdmin: boolean;
@@ -14,13 +13,11 @@ export interface JWTPayload {
   exp?: number;
 }
 
-// AuthRequest 인터페이스 정의
 export interface AuthRequest extends Request {
   user?: IUserDocument;
   token?: string;
 }
 
-// 토큰 생성 함수
 export const generateTokens = (user: any) => {
   const accessToken = jwt.sign(
     {
@@ -30,17 +27,16 @@ export const generateTokens = (user: any) => {
       isAdmin: user.isAdmin || false,
     },
     JWT_SECRET,
-    { expiresIn: "1d" } // 액세스 토큰 1일로 설정
+    { expiresIn: "1d" }
   );
 
   const refreshToken = jwt.sign({ userId: user._id }, JWT_SECRET, {
-    expiresIn: "30d", // 리프레시 토큰 30일로 설정
+    expiresIn: "30d",
   });
 
   return { accessToken, refreshToken };
 };
 
-// 토큰 확인 및 사용자 정보 검색 함수
 export const verifyToken = async (
   token: string
 ): Promise<{ user: JWTPayload | null; error?: string }> => {
@@ -56,7 +52,6 @@ export const verifyToken = async (
   }
 };
 
-// 선택적 JWT 인증 미들웨어 (토큰이 없어도 다음 진행)
 export const optionalAuth = async (
   req: Request,
   res: Response,
@@ -80,13 +75,11 @@ export const optionalAuth = async (
         }
       }
     } catch (err) {
-      // 오류 발생시 진행 (선택적 인증이므로)
     }
   }
   next();
 };
 
-// JWT 인증 미들웨어 (필수)
 export const requireAuth = async (
   req: Request,
   res: Response,
@@ -122,17 +115,14 @@ export const requireAuth = async (
   }
 };
 
-// 관리자 권한 확인 함수
 export const isAdmin = async (req: Request): Promise<boolean> => {
   const authHeader = req.headers.authorization;
   if (!authHeader) return false;
-  
   const token = authHeader.split(" ")[1];
   const { user } = await verifyToken(token);
   return user?.isAdmin === true;
 };
 
-// 관리자 권한 확인 미들웨어
 export const requireAdmin = (
   req: Request,
   res: Response,
@@ -150,7 +140,6 @@ export const requireAdmin = (
   }
 };
 
-// 리프레시 토큰을 이용한 액세스 토큰 갱신
 export const refreshAccessToken = async (req: Request, res: Response) => {
   const { refreshToken } = req.body;
 
@@ -159,7 +148,6 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
   }
 
   try {
-    // 리프레시 토큰 검증
     const decoded = jwt.verify(refreshToken, JWT_SECRET) as { userId: string };
     const user = await User.findById(decoded.userId);
 
@@ -167,7 +155,6 @@ export const refreshAccessToken = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
     }
 
-    // 새 액세스 토큰 발급
     const accessToken = jwt.sign(
       {
         userId: user._id,

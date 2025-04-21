@@ -16,7 +16,7 @@ const LoginSuccess = () => {
         if (!userData.accessToken) {
           throw new Error("액세스 토큰이 없습니다");
         }
-        
+
         const result = await handleSocialLogin({
           accessToken: userData.accessToken,
           refreshToken: userData.refreshToken,
@@ -25,16 +25,13 @@ const LoginSuccess = () => {
 
         if (result.success) {
           setLoginStatus("success");
-          
-          // 로그인 이전 페이지로 돌아가기 (저장된 URL이 있으면)
+
           const redirectUrl = localStorage.getItem("loginRedirectUrl");
           localStorage.removeItem("loginRedirectUrl");
-          
-          // 페이지 새로고침을 통해 상태 완전히 갱신
+
           if (redirectUrl) {
             window.location.href = redirectUrl;
           } else {
-            // 상태 갱신 후 홈으로 이동
             await checkAuth();
             navigate("/");
           }
@@ -49,31 +46,26 @@ const LoginSuccess = () => {
     [handleSocialLogin, navigate, checkAuth]
   );
 
-  // URL 파라미터로 받은 인증 정보 처리
   useEffect(() => {
     const handleUrlParams = async () => {
       try {
-        // URL 파라미터 추출
         const searchParams = new URLSearchParams(window.location.search);
-        
-        // 토큰 추출
+
         const accessToken = searchParams.get("accessToken");
         const refreshToken = searchParams.get("refreshToken");
         const userParam = searchParams.get("user");
-        
-        // 로그인 처리
+
         if (accessToken) {
           const userData = {
             accessToken,
             refreshToken: refreshToken || "",
             user: userParam ? JSON.parse(decodeURIComponent(userParam)) : null,
           };
-          
+
           await handleLoginSuccess(userData);
           return;
         }
-        
-        // 토큰이 없는 경우
+
         throw new Error("URL에서 인증 토큰을 찾을 수 없습니다.");
       } catch (error: any) {
         setLoginStatus("error");

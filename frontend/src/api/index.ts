@@ -1,9 +1,7 @@
 import axios from "axios";
 
-// 환경변수에서 기본 URL 가져오기
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
-// API 기본 설정
 const api = axios.create({
   baseURL: API_URL,
   timeout: 10000,
@@ -11,7 +9,6 @@ const api = axios.create({
 });
 
 // ===== 인증 관련 API =====
-// 로그인 API
 export const userLogin = async (email: string, password: string) => {
   try {
     const response = await api.post("/auth/login", { email, password });
@@ -21,9 +18,7 @@ export const userLogin = async (email: string, password: string) => {
   }
 };
 
-// 로그아웃
 export const userLogout = () => {
-  // 모든 인증 관련 데이터 제거
   localStorage.removeItem("authToken");
   localStorage.removeItem("refreshToken");
   localStorage.removeItem("userName");
@@ -31,11 +26,9 @@ export const userLogout = () => {
   localStorage.removeItem("user");
   localStorage.removeItem("loginRedirectUrl");
 
-  // API 헤더에서 토큰 제거
   delete api.defaults.headers.common["Authorization"];
 };
 
-// 인증 상태 확인
 export const checkAuthStatus = async () => {
   try {
     const response = await api.get("/auth/status");
@@ -45,7 +38,6 @@ export const checkAuthStatus = async () => {
   }
 };
 
-// 토큰 갱신
 export const refreshToken = async () => {
   try {
     const refreshToken = localStorage.getItem("refreshToken");
@@ -69,7 +61,6 @@ export const refreshToken = async () => {
   }
 };
 
-// API 인터셉터 설정
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("authToken");
@@ -108,7 +99,6 @@ api.interceptors.response.use(
   }
 );
 
-// 타입 정의
 export interface User {
   _id: string;
   displayName: string;
@@ -129,7 +119,6 @@ export interface Contact {
 }
 
 // ===== 사용자 관리 API (관리자 전용) =====
-// 사용자 목록 조회
 export const getUsersList = async () => {
   try {
     const response = await api.get("/auth/users/list");
@@ -145,7 +134,6 @@ export const getUsersList = async () => {
   }
 };
 
-// 관리자 권한 토글
 export const toggleUserAdminRole = async (userId: string) => {
   try {
     const response = await api.patch(`/auth/users/admin-toggle/${userId}`);
@@ -158,7 +146,6 @@ export const toggleUserAdminRole = async (userId: string) => {
   }
 };
 
-// 사용자 삭제
 export const deleteUserById = async (userId: string) => {
   try {
     const response = await api.delete(`/auth/users/delete/${userId}`);
@@ -172,7 +159,6 @@ export const deleteUserById = async (userId: string) => {
 };
 
 // ===== 문의 관리 API =====
-// 문의 전송
 export const submitContactForm = async (
   name: string,
   email: string,
@@ -190,7 +176,6 @@ export const submitContactForm = async (
   }
 };
 
-// 문의 목록 조회 (관리자 전용)
 export const getContactsList = async () => {
   try {
     const response = await api.get("/contact/list");
@@ -203,7 +188,6 @@ export const getContactsList = async () => {
   }
 };
 
-// 문의 읽음 표시 (관리자 전용)
 export const markContactAsRead = async (contactId: string) => {
   try {
     const response = await api.patch(`/contact/mark-read/${contactId}`);
@@ -213,7 +197,6 @@ export const markContactAsRead = async (contactId: string) => {
   }
 };
 
-// 문의 삭제 (관리자 전용)
 export const deleteContact = async (contactId: string) => {
   try {
     const response = await api.delete(`/contact/delete/${contactId}`);
@@ -224,7 +207,6 @@ export const deleteContact = async (contactId: string) => {
 };
 
 // ===== 대시보드 API =====
-// 방문자 통계 조회
 export const getVisitorStats = async () => {
   try {
     const response = await api.get("/stats/visitors");
@@ -237,7 +219,6 @@ export const getVisitorStats = async () => {
   }
 };
 
-// 읽지 않은 문의 수 조회
 export const getUnreadContactsCount = async () => {
   try {
     const response = await api.get("/contact/unread-count");
@@ -250,7 +231,6 @@ export const getUnreadContactsCount = async () => {
   }
 };
 
-// 대시보드 요약 정보 조회
 export const getDashboardSummary = async () => {
   try {
     const response = await api.get("/stats/dashboard/summary");
