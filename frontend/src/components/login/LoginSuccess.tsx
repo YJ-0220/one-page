@@ -4,7 +4,7 @@ import useAuth from "../../hooks/useAuth";
 
 const LoginSuccess = () => {
   const navigate = useNavigate();
-  const { handleSocialLogin } = useAuth();
+  const { handleSocialLogin, checkAuth } = useAuth();
   const [loginStatus, setLoginStatus] = useState<
     "processing" | "success" | "error"
   >("processing");
@@ -30,8 +30,14 @@ const LoginSuccess = () => {
           const redirectUrl = localStorage.getItem("loginRedirectUrl");
           localStorage.removeItem("loginRedirectUrl");
           
-          // 리다이렉트 (기본값은 홈페이지)
-          window.location.href = redirectUrl || "/";
+          // 페이지 새로고침을 통해 상태 완전히 갱신
+          if (redirectUrl) {
+            window.location.href = redirectUrl;
+          } else {
+            // 상태 갱신 후 홈으로 이동
+            await checkAuth();
+            navigate("/");
+          }
         } else {
           throw new Error(result.error || "알 수 없는 오류");
         }
@@ -40,7 +46,7 @@ const LoginSuccess = () => {
         setErrorMessage(error.message || "로그인 처리에 실패했습니다.");
       }
     },
-    [handleSocialLogin]
+    [handleSocialLogin, navigate, checkAuth]
   );
 
   // URL 파라미터로 받은 인증 정보 처리

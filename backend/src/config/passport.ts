@@ -1,6 +1,5 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import { Strategy as LineStrategy } from "passport-line";
 import User, { IUserDocument } from "../models/User";
 import crypto from "crypto";
 import { Request } from "express";
@@ -27,8 +26,6 @@ dotenv.config({ path: path.resolve(process.cwd(), envFile) });
 const requiredEnvVars = [
   "GOOGLE_CLIENT_ID",
   "GOOGLE_CLIENT_SECRET",
-  "LINE_CHANNEL_ID",
-  "LINE_CHANNEL_SECRET",
   "BACKEND_URL",
 ] as const;
 
@@ -95,41 +92,6 @@ export const configurePassport = () => {
             return done(null, user);
           } catch (error) {
             console.error("Google 로그인 처리 중 오류:", error);
-            return done(error as Error);
-          }
-        }
-      )
-    );
-  }
-
-  // Line OAuth 전략
-  if (process.env.LINE_CHANNEL_ID && process.env.LINE_CHANNEL_SECRET) {
-    passport.use(
-      new LineStrategy(
-        {
-          channelID: process.env.LINE_CHANNEL_ID!,
-          channelSecret: process.env.LINE_CHANNEL_SECRET!,
-          callbackURL: `${process.env.BACKEND_URL}/auth/line/callback`,
-          scope: 'profile openid email'
-        },
-        async (accessToken: string, refreshToken: string, profile: any, done: any) => {
-          try {
-            let user = await User.findOne({ 'line.id': profile.id });
-            
-            if (!user) {
-              user = await User.create({
-                line: {
-                  id: profile.id,
-                  accessToken
-                },
-                displayName: profile.displayName,
-                email: profile.emails?.[0]?.value,
-                isAdmin: false
-              });
-            }
-            
-            return done(null, user);
-          } catch (error) {
             return done(error as Error);
           }
         }

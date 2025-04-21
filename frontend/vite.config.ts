@@ -22,14 +22,16 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       proxy: {
-        "/auth": {
+        "^/auth/(?!callback).*": {
           target: apiUrl,
           changeOrigin: true,
           secure: false,
           ws: true,
+          rewrite: (path) => path,
         },
       },
       cors: true,
+      historyApiFallback: true,
     },
     build: {
       outDir: "dist",

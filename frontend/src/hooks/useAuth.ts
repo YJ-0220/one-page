@@ -63,7 +63,7 @@ export default function useAuth() {
         const transformedUser = {
           ...response.user,
           photoURL: response.user.photo,
-          role: response.user.isAdmin ? "admin" : "user",
+          role: response.user.isAdmin === true ? "admin" : "user",
         };
         setUserData(transformedUser);
         return true;
@@ -73,7 +73,6 @@ export default function useAuth() {
         return false;
       }
     } catch (err) {
-      console.error("인증 상태 확인 오류:", err);
       setError("인증 상태 확인 오류");
       setIsAuthenticated(false);
       setUser(null);
@@ -98,6 +97,8 @@ export default function useAuth() {
 
         // 토큰 저장
         localStorage.setItem("authToken", accessToken);
+        // axios 전역 설정
+        axios.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
         api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
         
         if (refreshToken) {
@@ -122,7 +123,7 @@ export default function useAuth() {
             displayName: userData.displayName || userData.email || "사용자",
             email: userData.email,
             photoURL: userData.photo || userData.photoURL || null,
-            role: userData.isAdmin ? "admin" : "user",
+            role: userData.isAdmin === true ? "admin" : "user",
             createdAt: userData.createdAt || new Date().toISOString(),
             updatedAt: userData.updatedAt || new Date().toISOString(),
           };
@@ -167,10 +168,11 @@ export default function useAuth() {
           // api 헤더에 토큰 설정
           api.defaults.headers.common["Authorization"] = `Bearer ${response.accessToken}`;
 
+          // 사용자 정보 변환 및 저장
           const transformedUser = {
             ...response.user,
             photoURL: response.user.photo,
-            role: response.user.isAdmin ? "admin" : "user",
+            role: response.user.isAdmin === true ? "admin" : "user",
           };
           setUserData(transformedUser);
           return response;
@@ -196,7 +198,6 @@ export default function useAuth() {
       setError(null);
       window.location.href = "/";
     } catch (error) {
-      console.error("Logout error:", error);
       setError("로그아웃 처리 중 오류가 발생했습니다.");
     }
   };

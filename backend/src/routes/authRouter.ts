@@ -35,7 +35,6 @@ if (!CLIENT_URL || !BACKEND_URL) {
 
 // 소셜 로그인 콜백 URL 설정
 const GOOGLE_CALLBACK_URL = `${BACKEND_URL}/auth/google/callback`;
-const LINE_CALLBACK_URL = `${BACKEND_URL}/auth/line/callback`;
 
 // 로그인 (이메일/비밀번호)
 router.post("/login", async (req, res) => {
@@ -126,7 +125,7 @@ router.get("/google", (req, res, next) => {
   const callbackUrl = req.query.callback_url as string;
   
   // 대체 URL (fallback) 설정 - 기본값은 클라이언트 메인 URL
-  const redirectUrl = callbackUrl || `${CLIENT_URL}/#/auth/callback`;
+  const redirectUrl = callbackUrl || `${CLIENT_URL}/auth/callback`;
   
   // 인증 옵션
   const authOptions = {
@@ -139,78 +138,10 @@ router.get("/google", (req, res, next) => {
   passport.authenticate("google", authOptions)(req, res, next);
 });
 
-// LINE 로그인 엔드포인트
-router.get("/line", (req, res, next) => {
-  // 콜백 URL을 쿼리 파라미터로 받아옴
-  const callbackUrl = req.query.callback_url as string;
-  
-  // 대체 URL (fallback) 설정 - 기본값은 클라이언트 메인 URL
-  const redirectUrl = callbackUrl || `${CLIENT_URL}/#/auth/callback`;
-  
-  // 인증 옵션
-  const authOptions = {
-    session: false,
-    state: redirectUrl, // state 파라미터로 콜백 URL 전달
-    callbackURL: LINE_CALLBACK_URL,
-  };
-  
-  // 소셜 인증 제공자로 리다이렉트
-  passport.authenticate("line", authOptions)(req, res, next);
-});
-
 // Google 로그인 콜백
 router.get(
   "/google/callback",
   passport.authenticate("google", { session: false }),
-  async (req, res) => {
-    try {
-      // 인증 실패 처리
-      if (!req.user) {
-        // state 파라미터에서 원래 리다이렉트 URL 추출
-        const redirectUrl = req.query.state as string || `${CLIENT_URL}/login`;
-        return res.redirect(`${redirectUrl}?error=인증 실패`);
-      }
-
-      // 사용자 정보 및 토큰 준비
-      const user = req.user as any;
-      const { accessToken, refreshToken } = generateTokens(user);
-
-      // 원래 리다이렉트 URL (state 파라미터)
-      const redirectUrl = req.query.state as string;
-
-      // 사용자 정보 준비 및 인코딩
-      const userData = {
-        _id: user._id,
-        displayName: user.displayName,
-        email: user.email,
-        isAdmin: user.isAdmin,
-      };
-      const encodedUser = encodeURIComponent(JSON.stringify(userData));
-
-      // 기본 파라미터 (모든 리다이렉트에 포함)
-      const params = `accessToken=${accessToken}&refreshToken=${refreshToken}&user=${encodedUser}`;
-
-      // 리다이렉트 URL이 있는 경우
-      if (redirectUrl) {
-        // URL에 이미 쿼리 파라미터가 있는지 확인
-        const hasQuery = redirectUrl.includes("?");
-        const separator = hasQuery ? "&" : "?";
-        return res.redirect(`${redirectUrl}${separator}${params}`);
-      }
-
-      // 대체 리다이렉트 (fallback) - 클라이언트 콜백 엔드포인트로
-      return res.redirect(`${CLIENT_URL}/auth/callback?${params}`);
-    } catch (error) {
-      // 오류 발생시 로그인 페이지로
-      return res.redirect(`${CLIENT_URL}/login?error=서버 오류`);
-    }
-  }
-);
-
-// LINE 로그인 콜백
-router.get(
-  "/line/callback",
-  passport.authenticate("line", { session: false }),
   async (req, res) => {
     try {
       // 인증 실패 처리

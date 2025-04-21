@@ -26,6 +26,8 @@ function App() {
     logout,
     handleSocialLogin,
   } = useAuth();
+  
+  // 관리자 권한 확인 - AuthUser 타입을 따름
   const isAdmin = user?.role === "admin";
 
   // 로그인 핸들러 함수
@@ -97,23 +99,27 @@ function App() {
             accessToken: token,
             refreshToken: refresh,
             user: user ? JSON.parse(user) : null,
-          }).then((result: any) => {
+          }).then(async (result: any) => {
             if (result.success) {
+              // URL에서 토큰 파라미터 제거
               if (window.history && window.history.replaceState) {
                 const cleanUrl = window.location.href
                   .split("?")[0]
                   .split("#")[0];
                 window.history.replaceState({}, document.title, cleanUrl);
               }
+              
+              // 상태 확실히 갱신
+              await checkAuth();
               navigate("/");
             }
           });
         }
       } catch (err) {
-        console.error("URL 파라미터 처리 오류:", err);
+        // URL 파라미터 처리 오류 발생
       }
     }
-  }, [handleSocialLogin, navigate]);
+  }, [handleSocialLogin, navigate, checkAuth]);
 
   // 로딩 중이면 로딩 표시
   if (loading) {
