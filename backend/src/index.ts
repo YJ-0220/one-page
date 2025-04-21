@@ -45,7 +45,6 @@ for (const envVar of requiredEnvVars) {
 
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI as string;
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN as string;
 const CLIENT_URL = process.env.CLIENT_URL as string;
 const BACKEND_URL = process.env.BACKEND_URL as string;
 
@@ -84,7 +83,7 @@ app.use((req, res, next) => {
 // CORS 설정
 app.use(
   cors({
-    origin: CLIENT_ORIGIN,
+    origin: CLIENT_URL,
     credentials: true,
   })
 );
