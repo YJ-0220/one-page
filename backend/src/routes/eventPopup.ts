@@ -24,7 +24,7 @@ router.post(
       const eventPopup = new EventPopup({
         title: req.body.title,
         description: req.body.description,
-        imageUrl: `/uploads/${req.file.filename}`,
+        imageUrl: `${process.env.BACKEND_URL}/uploads/${req.file.filename}`,
         link: req.body.link,
         startDate: req.body.startDate,
         endDate: req.body.endDate,
@@ -77,7 +77,7 @@ router.put(
       const { id } = req.params;
       const { title, description, link, startDate, endDate, isActive } =
         req.body;
-      const imageUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
+      const imageUrl = req.file ? `${process.env.BACKEND_URL}/uploads/${req.file.filename}` : undefined;
 
       const eventPopup = await EventPopup.findById(id);
       if (!eventPopup) {
@@ -122,7 +122,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "팝업을 찾을 수 없습니다." });
     }
 
-    const imagePath = popup.imageUrl;
+    const imagePath = popup.imageUrl.split("/uploads/")[1];
     if (imagePath) {
       const fullPath = path.join(__dirname, "..", "..", imagePath);
 

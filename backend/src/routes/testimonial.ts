@@ -17,7 +17,7 @@ router.post("/", upload.single("image"), async (req: any, res) => {
       position: req.body.position,
       description: req.body.description,
       career: req.body.career,
-      imageUrl: `/uploads/${req.file.filename}`,
+      imageUrl: `${process.env.BACKEND_URL}/uploads/${req.file.filename}`,
       isActive: true,
     });
 
@@ -73,7 +73,7 @@ router.put("/:id", upload.single("image"), async (req: any, res) => {
     };
 
     if (req.file) {
-      updateData.imageUrl = `/uploads/${req.file.filename}`;
+      updateData.imageUrl = `${process.env.BACKEND_URL}/uploads/${req.file.filename}`;
     }
 
     const updatedTestimonial = await Testimonial.findByIdAndUpdate(

@@ -12,7 +12,7 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       const { title, description, link, order } = req.body;
-      const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+      const imageUrl = req.file ? `${process.env.BACKEND_URL}/uploads/${req.file.filename}` : null;
 
       if (!imageUrl) {
         return res.status(400).json({ message: "이미지는 필수입니다." });
@@ -83,7 +83,7 @@ router.put(
     try {
       const { id } = req.params;
       const { title, description, link, order, isActive } = req.body;
-      const imageUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
+      const imageUrl = req.file ? `${process.env.BACKEND_URL}/uploads/${req.file.filename}` : undefined;
 
       const imageSlide = await ImageSlide.findById(id);
       if (!imageSlide) {
